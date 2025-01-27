@@ -76,7 +76,7 @@ func parse(v string, t string) (interface{}, error) {
 func main() {
 	mux := http.NewServeMux()
 	mux.HandleFunc(`/`, metricCollector)
-	mux.HandleFunc(`/update/`, metricCollector)
+	mux.HandleFunc(`/updater/`, metricCollector)
 
 	err := http.ListenAndServe(`:8080`, mux)
 	if err != nil {
