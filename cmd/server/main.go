@@ -1,76 +1,43 @@
 package main
 
 import (
-	"fmt"
-	"log"
 	"net/http"
 	"strconv"
 	"strings"
 )
 
-type MemStorage struct {
-	name  string
-	value Metric
-}
-
-type Metric struct {
-	mtype string
-	value interface{}
-}
-
-var metrics = []MemStorage{}
+var metrics = map[string]*MemStorage{}
 
 // http://<АДРЕС_СЕРВЕРА>/update/<ТИП_МЕТРИКИ>/<ИМЯ_МЕТРИКИ>/<ЗНАЧЕНИЕ_МЕТРИКИ>
 func metricCollector(w http.ResponseWriter, r *http.Request) {
 	array := strings.Split(r.RequestURI, "/")
 	if len(array) < 5 {
 		w.WriteHeader(http.StatusNotFound)
+	} else if r.Method != "POST" || r.Header.Get("Content-Type") != "text/plain" {
+		w.WriteHeader(http.StatusMethodNotAllowed)
 	} else {
-		mt := array[2]
-		mn := array[3]
-		mv := array[4]
+		mt, mn, mv := array[2], array[3], array[4]
 		if mt == "gauge" {
-			v, err := parse(mv, mt)
+			v, err := strconv.ParseFloat(mv, 64)
 			if err != nil {
-				log.Default().Println(err)
 				w.WriteHeader(http.StatusBadRequest)
 			} else {
-				metrics = append(metrics, MemStorage{mn, Metric{mt, v}})
-				w.WriteHeader(http.StatusOK)
+				w.WriteHeader(setGauge(metrics, mn, mt, v))
 			}
 		} else if mt == "counter" {
-			v, err := parse(mv, mt)
+			v, err := strconv.ParseInt(mv, 10, 64)
 			if err != nil {
-				log.Default().Println(err)
 				w.WriteHeader(http.StatusBadRequest)
 			} else {
-				metrics = append(metrics, MemStorage{mn, Metric{mt, v}})
-				w.WriteHeader(http.StatusOK)
+				w.WriteHeader(setCounter(metrics, mn, mt, v))
 			}
 		} else {
 			w.WriteHeader(http.StatusBadRequest)
 		}
-		fmt.Printf("%v \n", metrics)
 	}
-}
-
-func parse(v string, t string) (interface{}, error) {
-	if t == "gauge" {
-		result, err := strconv.ParseFloat(v, 64)
-		if err != nil {
-			return nil, err
-		}
-		return result, nil
-	} else if t == "counter" {
-		result, err := strconv.ParseInt(v, 10, 64)
-		if err != nil {
-			return nil, err
-		}
-		return result, nil
-	} else {
-		log.Printf("No metrics with type %v found", t)
-	}
-	return nil, nil
+	//for k, v := range metrics {
+	//	fmt.Printf("key[%s] value[%s] \n -------------------------------------- \n", k, v)
+	//}
 }
 
 func main() {
