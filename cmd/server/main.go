@@ -42,8 +42,7 @@ func metricCollector(w http.ResponseWriter, r *http.Request) {
 
 func main() {
 	mux := http.NewServeMux()
-	mux.HandleFunc(`/`, metricCollector)
-	mux.HandleFunc(`/updater/`, metricCollector)
+	mux.HandleFunc(`/update/`, metricCollector)
 
 	err := http.ListenAndServe(`:8080`, mux)
 	if err != nil {
