@@ -40,7 +40,7 @@ func reporter() {
 		s := fmt.Sprintf("%v", v)
 		res, err := url.JoinPath(baseUrl, t, f.Name, s)
 		resp, err := http.Post(res, "text/plain", nil)
-		println(res)
+		//println(res)
 		if err != nil {
 			println(resp)
 		}
