@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"net/http"
 	"strconv"
 	"strings"
@@ -35,9 +36,9 @@ func metricCollector(w http.ResponseWriter, r *http.Request) {
 			w.WriteHeader(http.StatusBadRequest)
 		}
 	}
-	//for k, v := range metrics {
-	//	fmt.Printf("key[%s] value[%s] \n -------------------------------------- \n", k, v)
-	//}
+	for k, v := range metrics {
+		fmt.Printf("key[%s] value[%s] \n -------------------------------------- \n", k, v)
+	}
 }
 
 func main() {
