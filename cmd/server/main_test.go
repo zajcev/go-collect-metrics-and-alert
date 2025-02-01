@@ -29,6 +29,7 @@ func Test_metricCollector(t *testing.T) {
 		{"Invalid counter value", "/update/counter/test/1.11", "POST", 400, nil},
 		{"Invalid metric type", "/update/gauge1/test/123", "POST", 400, nil},
 		{"Invalid path", "/updater/gauge1/test/123", "POST", 400, nil},
+		{"Invalid request method", "/update/gauge/test1/123", "GET", 405, nil},
 		{"Put gauge metric", "/update/gauge/test/123", "POST", 200, nil},
 		{"Put counter metric", "/update/counter/test1/123", "POST", 200, nil},
 		{"Try to change metric type", "/update/gauge/test1/123", "POST", 400, nil},
