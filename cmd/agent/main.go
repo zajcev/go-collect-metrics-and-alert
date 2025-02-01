@@ -30,7 +30,8 @@ func reporter() {
 	for i := 0; i < mt.NumField(); i++ {
 		f := mt.Field(i)
 		var t string
-		baseUrl := "http://localhost:8080/update"
+		baseUrl := "http://localhost:8080"
+		p := "update"
 		v := getValueByName(m, f.Name)
 		if reflect.TypeOf(v).String() == "float64" {
 			t = "gauge"
@@ -38,15 +39,17 @@ func reporter() {
 			t = "counter"
 		}
 		s := fmt.Sprintf("%v", v)
-		res, err := url.JoinPath(baseUrl, t, f.Name, s)
+		res, err := url.JoinPath(baseUrl, p, t, f.Name, s)
 		if err != nil {
-			log.Printf("Error in reporter: %v", err)
+			log.Printf("Error path join: %v", err)
 		}
 		resp, err := http.Post(res, "text/plain", nil)
 		if err != nil {
-			log.Printf("Error in reporter: %v", err)
+			log.Printf("Error while request: %v", err)
 		}
-		resp.Close = true
+		if resp.Body.Close() != nil {
+			log.Printf("Error while close body: %v", err)
+		}
 		//log.Printf("Reporter: Name: %v = Value: %v", f.Name, getValueByName(&m, f.Name))
 	}
 }
