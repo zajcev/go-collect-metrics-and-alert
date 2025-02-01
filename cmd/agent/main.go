@@ -24,7 +24,6 @@ func monitor() {
 	addCustomMetric()
 }
 
-// http://<АДРЕС_СЕРВЕРА>/update/<ТИП_МЕТРИКИ>/<ИМЯ_МЕТРИКИ>/<ЗНАЧЕНИЕ_МЕТРИКИ>
 func reporter() {
 	mt := reflect.TypeOf(m)
 	for i := 0; i < mt.NumField(); i++ {
