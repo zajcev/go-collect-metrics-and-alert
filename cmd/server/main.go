@@ -1,7 +1,6 @@
 package main
 
 import (
-	"fmt"
 	"log"
 	"net/http"
 	"strconv"
@@ -41,10 +40,9 @@ func metricCollector(w http.ResponseWriter, r *http.Request) {
 			log.Fatalf("Error while close body: %v", err)
 		}
 	}
-
-	for k, v := range metrics {
-		fmt.Printf("key[%s] value[%s] \n -------------------------------------- \n", k, v)
-	}
+	//for k, v := range metrics {
+	//	fmt.Printf("key[%s] value[%s] \n -------------------------------------- \n", k, v)
+	//}
 }
 
 func main() {
