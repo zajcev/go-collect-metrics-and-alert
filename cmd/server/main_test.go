@@ -1,6 +1,7 @@
 package main
 
 import (
+	"log"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -12,4 +13,8 @@ func Test_metricCollector(t *testing.T) {
 	metricCollector(w, req)
 	res := w.Result()
 	println(res.StatusCode)
+	err := res.Body.Close()
+	if err != nil {
+		log.Fatalf("Error while close body: %v", err)
+	}
 }

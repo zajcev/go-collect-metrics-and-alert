@@ -36,8 +36,9 @@ func metricCollector(w http.ResponseWriter, r *http.Request) {
 		} else {
 			w.WriteHeader(http.StatusBadRequest)
 		}
-		if r.Body.Close() != nil {
-			log.Printf("Error while close body: %v")
+		err := r.Body.Close()
+		if err != nil {
+			log.Fatalf("Error while close body: %v", err)
 		}
 	}
 
