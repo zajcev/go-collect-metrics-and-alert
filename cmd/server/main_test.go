@@ -2,23 +2,14 @@ package main
 
 import (
 	"net/http"
+	"net/http/httptest"
 	"testing"
 )
 
 func Test_metricCollector(t *testing.T) {
-	type args struct {
-		w http.ResponseWriter
-		r *http.Request
-	}
-	tests := []struct {
-		name string
-		args args
-	}{
-		// TODO: Add test cases.
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			metricCollector(tt.args.w, tt.args.r)
-		})
-	}
+	req := httptest.NewRequest(http.MethodPost, "/update", nil)
+	w := httptest.NewRecorder()
+	metricCollector(w, req)
+	res := w.Result()
+	println(res.StatusCode)
 }
