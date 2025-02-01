@@ -30,7 +30,7 @@ func reporter() {
 	for i := 0; i < mt.NumField(); i++ {
 		f := mt.Field(i)
 		var t string
-		baseUrl, err := url.Parse("http://localhost:8080")
+		u, err := url.Parse("http://localhost:8080")
 		if err != nil {
 			log.Fatal(err)
 		}
@@ -42,7 +42,7 @@ func reporter() {
 			t = "counter"
 		}
 		s := fmt.Sprintf("%v", v)
-		res := baseUrl.JoinPath(p, t, f.Name, s)
+		res := u.JoinPath(p, t, f.Name, s)
 		resp, err := http.Post(res.String(), "text/plain", nil)
 		if err != nil {
 			log.Printf("Error while request: %v", err)
