@@ -2,8 +2,8 @@ package main
 
 import (
 	"fmt"
+	"github.com/go-resty/resty/v2"
 	"log"
-	"net/http"
 	"net/url"
 	"reflect"
 	"runtime"
@@ -27,6 +27,7 @@ func monitor() {
 
 func reporter() {
 	mt := reflect.TypeOf(m)
+	client := resty.New()
 	for i := 0; i < mt.NumField(); i++ {
 		f := mt.Field(i)
 		var t string
@@ -43,13 +44,11 @@ func reporter() {
 		}
 		s := fmt.Sprintf("%v", v)
 		res := u.JoinPath(p, t, f.Name, s)
-		resp, err := http.Post(res.String(), "text/plain", nil)
+		resp, err := client.R().SetHeader("Content-Type", "text/plain").Post(res.String())
 		if err != nil {
 			log.Printf("Error while request: %v", err)
 		}
-		if resp.Body.Close() != nil {
-			log.Printf("Error while close body: %v", err)
-		}
+		fmt.Println(resp)
 		log.Printf("Reporter: Name: %v = Value: %v", f.Name, getValueByName(&m, f.Name))
 	}
 }

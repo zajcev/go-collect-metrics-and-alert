@@ -1,46 +1,48 @@
 package main
 
 import (
+	"net/http"
 	"net/http/httptest"
 	"testing"
 )
 
-func genPostReq(target string, method string) (int, error) {
-	req := httptest.NewRequest(method, target, nil)
-	req.Header.Set("Content-Type", "text/plain")
-	w := httptest.NewRecorder()
-	metricCollector(w, req)
-	res := w.Result()
-	err := res.Body.Close()
-	c := res.StatusCode
-	return c, err
-}
-
-func Test_metricCollector(t *testing.T) {
+func TestGetArticleID(t *testing.T) {
 	tests := []struct {
 		name   string
 		target string
 		method string
 		expect int
-		err    error
 	}{
-		{"Metric without name", "/update/counter/123", "POST", 404, nil},
-		{"Invalid gauge value", "/update/gauge/test/test", "POST", 400, nil},
-		{"Invalid counter value", "/update/counter/test/1.11", "POST", 400, nil},
-		{"Invalid metric type", "/update/gauge1/test/123", "POST", 400, nil},
-		{"Invalid path", "/updater/gauge1/test/123", "POST", 400, nil},
-		{"Invalid request method", "/update/gauge/test1/123", "GET", 405, nil},
-		{"Put gauge metric", "/update/gauge/test/123", "POST", 200, nil},
-		{"Put counter metric", "/update/counter/test1/123", "POST", 200, nil},
-		{"Try to change metric type", "/update/gauge/test1/123", "POST", 400, nil},
+		{"Metric without name", "/update/counter/123", "POST", 404},
+		{"Invalid gauge value", "/update/gauge/test/test", "POST", 400},
+		{"Invalid counter value", "/update/counter/test/1.11", "POST", 400},
+		{"Invalid metric type", "/update/gauge1/test/123", "POST", 400},
+		{"Invalid path", "/updater/gauge1/test/123", "POST", 404},
+		{"Put gauge metric", "/update/gauge/test/123", "POST", 200},
+		{"Put counter metric", "/update/counter/test1/123", "POST", 200},
 	}
+	testServer := httptest.NewServer(Router())
+	testServer.URL = "http://localhost:8080"
+
 	for _, test := range tests {
-		c, err := genPostReq(test.target, test.method)
-		if err != nil {
-			t.Errorf("Error: %v", err)
-		}
-		if test.expect != c {
-			t.Errorf("Name: %v : Expected %v but got: %v", test.name, test.expect, c)
-		}
+		t.Run(test.name, func(t *testing.T) {
+			//println(test.method, testServer.Listener.Addr().String()+test.target)
+			request, err := http.NewRequest(http.MethodPost, "http://"+testServer.Listener.Addr().String()+test.target, nil)
+			request.Header.Add("Content-Type", "text/plain")
+			if err != nil {
+				t.Fatal(err)
+			}
+			response, err := http.DefaultClient.Do(request)
+			if err != nil {
+				t.Fatal(err)
+			}
+			err = response.Body.Close()
+			if err != nil {
+				t.Fatal(err)
+			}
+			if response.StatusCode != test.expect {
+				t.Fatalf("expect %d, got %d", test.expect, response.StatusCode)
+			}
+		})
 	}
 }

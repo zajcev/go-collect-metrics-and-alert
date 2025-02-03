@@ -1,38 +1,47 @@
 package main
 
 import (
+	"fmt"
 	"net/http"
 )
 
 type MemStorage struct {
-	mtype string
-	value interface{}
+	Mtype string
+	Value interface{}
+}
+
+func getMetricValue(m map[string]*MemStorage, k string, t string) string {
+	if m[k] != nil && m[k].Mtype == t {
+		return fmt.Sprintf("%v", m[k].Value)
+	} else {
+		return ""
+	}
 }
 
 func setCounter(m map[string]*MemStorage, k string, t string, v int64) int {
 	if m[k] != nil {
-		if m[k].mtype == t {
-			m[k].value = m[k].value.(int64) + v
+		if m[k].Mtype == t {
+			m[k].Value = m[k].Value.(int64) + v
 			return http.StatusOK
 		} else {
 			return http.StatusBadRequest
 		}
 	} else {
-		m[k] = &MemStorage{mtype: t, value: v}
+		m[k] = &MemStorage{Mtype: t, Value: v}
 		return http.StatusOK
 	}
 }
 
 func setGauge(m map[string]*MemStorage, k string, t string, v float64) int {
 	if m[k] != nil {
-		if m[k].mtype == t {
-			m[k] = &MemStorage{mtype: t, value: v}
+		if m[k].Mtype == t {
+			m[k] = &MemStorage{Mtype: t, Value: v}
 			return http.StatusOK
 		} else {
 			return http.StatusBadRequest
 		}
 	} else {
-		m[k] = &MemStorage{mtype: t, value: v}
+		m[k] = &MemStorage{Mtype: t, Value: v}
 		return http.StatusOK
 	}
 }
