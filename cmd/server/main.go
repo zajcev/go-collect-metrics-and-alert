@@ -17,5 +17,6 @@ func Router() chi.Router {
 }
 
 func main() {
-	log.Fatal(http.ListenAndServe(":8080", Router()))
+	parseFlags()
+	log.Fatal(http.ListenAndServe(listenAddress, Router()))
 }

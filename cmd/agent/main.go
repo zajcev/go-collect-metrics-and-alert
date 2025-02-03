@@ -25,13 +25,13 @@ func monitor() {
 	addCustomMetric()
 }
 
-func reporter() {
+func reporter(u string) {
 	mt := reflect.TypeOf(m)
 	client := resty.New()
 	for i := 0; i < mt.NumField(); i++ {
 		f := mt.Field(i)
 		var t string
-		u, err := url.Parse("http://localhost:8080")
+		u, err := url.Parse(u)
 		if err != nil {
 			log.Fatal(err)
 		}
@@ -54,14 +54,15 @@ func reporter() {
 }
 
 func main() {
-	monitorTimer := time.NewTicker(2 * time.Second)
-	reporterTimer := time.NewTicker(10 * time.Second)
+	parseFlags()
+	monitorTimer := time.NewTicker(pollInterval)
+	reporterTimer := time.NewTicker(reportInterval)
 	for {
 		select {
 		case <-monitorTimer.C:
 			monitor()
 		case <-reporterTimer.C:
-			reporter()
+			reporter(serverAddress)
 		}
 	}
 }
