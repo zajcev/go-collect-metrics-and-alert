@@ -31,7 +31,7 @@ func reporter(u string) {
 	for i := 0; i < mt.NumField(); i++ {
 		f := mt.Field(i)
 		var t string
-		u, err := url.Parse(u)
+		u, err := url.Parse("http://" + u)
 		if err != nil {
 			log.Fatal(err)
 		}
