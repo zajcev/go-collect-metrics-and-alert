@@ -5,6 +5,7 @@ import (
 	"github.com/go-resty/resty/v2"
 	"log"
 	"net/url"
+	"os"
 	"reflect"
 	"runtime"
 	"time"
@@ -55,6 +56,9 @@ func reporter(u string) {
 
 func main() {
 	parseFlags()
+	if serverAddressOs := os.Getenv("ADDRESS"); serverAddressOs != "" {
+		serverAddress = serverAddressOs
+	}
 	monitorTimer := time.NewTicker(time.Duration(pollInterval) * time.Second)
 	reporterTimer := time.NewTicker(time.Duration(reportInterval) * time.Second)
 	for {
