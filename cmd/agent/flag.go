@@ -4,12 +4,12 @@ import (
 	"flag"
 	"github.com/kelseyhightower/envconfig"
 	"log"
+	"os"
 )
 
 type Flags struct {
-	ADDRESS         string
-	REPORT_INTERVAL int
-	POLL_INTERVAL   int
+	ReportInterval int
+	PollInterval   int
 }
 
 var serverAddress string
@@ -26,14 +26,14 @@ func parseFlags() {
 	flag.IntVar(&reportInterval, "r", 10, "set the timeout for reports [ example usage : -r 2 ]")
 	flag.IntVar(&pollInterval, "p", 2, "set the timeout for collect metrics [ example usage : -p 10s ]")
 
-	if serverAddressOs := f.ADDRESS; serverAddressOs != "" {
-		f.ADDRESS = serverAddressOs
+	if serverAddressOs := os.Getenv("ADDRESS"); serverAddressOs != "" {
+		serverAddress = serverAddressOs
 	}
-	if f.REPORT_INTERVAL != 0 {
-		reportInterval = f.REPORT_INTERVAL
+	if f.ReportInterval != 0 {
+		reportInterval = f.ReportInterval
 	}
-	if f.POLL_INTERVAL != 0 {
-		pollInterval = f.POLL_INTERVAL
+	if f.PollInterval != 0 {
+		pollInterval = f.PollInterval
 	}
 	flag.Parse()
 }
