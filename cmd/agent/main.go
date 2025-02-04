@@ -55,8 +55,8 @@ func reporter(u string) {
 
 func main() {
 	parseFlags()
-	monitorTimer := time.NewTicker(pollInterval)
-	reporterTimer := time.NewTicker(reportInterval)
+	monitorTimer := time.NewTicker(time.Duration(pollInterval) * time.Second)
+	reporterTimer := time.NewTicker(time.Duration(reportInterval) * time.Second)
 	for {
 		select {
 		case <-monitorTimer.C:
