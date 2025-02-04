@@ -62,7 +62,7 @@ func main() {
 		case <-monitorTimer.C:
 			monitor()
 		case <-reporterTimer.C:
-			reporter(serverAddress)
+			reporter("http://" + serverAddress)
 		}
 	}
 }
