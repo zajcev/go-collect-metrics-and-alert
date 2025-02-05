@@ -18,7 +18,7 @@ func Test_monitor(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			monitor()
+			NewMonitor()
 		})
 	}
 }
@@ -37,7 +37,7 @@ func Test_reporter(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			reporter("http://localhost:8080")
+			NewReporter("http://localhost:8080")
 		})
 	}
 }

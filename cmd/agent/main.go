@@ -5,7 +5,6 @@ import (
 	"github.com/go-resty/resty/v2"
 	"log"
 	"net/url"
-	"os"
 	"reflect"
 	"runtime"
 	"time"
@@ -14,7 +13,7 @@ import (
 var m Metrics
 var counter int64 = 0
 
-func monitor() {
+func NewMonitor() {
 	var rt runtime.MemStats
 	runtime.ReadMemStats(&rt)
 	mt := reflect.TypeOf(m)
@@ -26,7 +25,7 @@ func monitor() {
 	addCustomMetric()
 }
 
-func reporter(u string) {
+func NewReporter(u string) {
 	mt := reflect.TypeOf(m)
 	client := resty.New()
 	for i := 0; i < mt.NumField(); i++ {
@@ -55,18 +54,18 @@ func reporter(u string) {
 }
 
 func main() {
-	parseFlags()
-	if serverAddressOs := os.Getenv("ADDRESS"); serverAddressOs != "" {
-		serverAddress = serverAddressOs
+	f, err := NewParseFlags()
+	if err != nil {
+		log.Fatal(err)
 	}
-	monitorTimer := time.NewTicker(time.Duration(pollInterval) * time.Second)
-	reporterTimer := time.NewTicker(time.Duration(reportInterval) * time.Second)
+	monitorTimer := time.NewTicker(time.Duration(f.PollInterval) * time.Second)
+	reporterTimer := time.NewTicker(time.Duration(f.ReportInterval) * time.Second)
 	for {
 		select {
 		case <-monitorTimer.C:
-			monitor()
+			NewMonitor()
 		case <-reporterTimer.C:
-			reporter("http://" + serverAddress)
+			NewReporter("http://" + f.ServerAddress)
 		}
 	}
 }

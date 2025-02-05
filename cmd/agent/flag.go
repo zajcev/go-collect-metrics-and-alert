@@ -2,38 +2,29 @@ package main
 
 import (
 	"flag"
-	"github.com/kelseyhightower/envconfig"
-	"log"
-	"os"
+	"github.com/caarlos0/env/v11"
 )
 
 type Flags struct {
-	ReportInterval int
-	PollInterval   int
+	ServerAddress  string `env:"ADDRESS" envDefault:"localhost:8080"`
+	ReportInterval int    `env:"REPORT_INTERVAL" envDefault:"10"`
+	PollInterval   int    `env:"POLL_INTERVAL" envDefault:"2"`
 }
 
-var serverAddress string
-var reportInterval int
-var pollInterval int
+type config struct {
+	Home string `env:"HOME"`
+}
 
-func parseFlags() {
+func NewParseFlags() (*Flags, error) {
 	var f Flags
-	err := envconfig.Process("", &f)
+	err := env.Parse(&f)
 	if err != nil {
-		log.Fatal(err.Error())
+		return nil, err
 	}
-	flag.StringVar(&serverAddress, "a", "localhost:8080", "address and port destination server [ example usage : -a http://localhost:8080 ]")
-	flag.IntVar(&reportInterval, "r", 10, "set the timeout for reports [ example usage : -r 2 ]")
-	flag.IntVar(&pollInterval, "p", 2, "set the timeout for collect metrics [ example usage : -p 10s ]")
-
-	if serverAddressOs := os.Getenv("ADDRESS"); serverAddressOs != "" {
-		serverAddress = serverAddressOs
-	}
-	if f.ReportInterval != 0 {
-		reportInterval = f.ReportInterval
-	}
-	if f.PollInterval != 0 {
-		pollInterval = f.PollInterval
-	}
+	flag.StringVar(&f.ServerAddress, "a", f.ServerAddress, "address and port destination server [ example usage : -a http://localhost:8080 ]")
+	flag.IntVar(&f.ReportInterval, "r", f.ReportInterval, "set the timeout for reports [ example usage : -r 2 ]")
+	flag.IntVar(&f.PollInterval, "p", f.PollInterval, "set the timeout for collect metrics [ example usage : -p 10s ]")
 	flag.Parse()
+
+	return &f, nil
 }
