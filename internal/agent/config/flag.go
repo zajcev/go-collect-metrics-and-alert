@@ -7,9 +7,9 @@ import (
 )
 
 type NewConfig struct {
-	address        string `env:"ADDRESS"`
-	reportInterval int    `env:"REPORT_INTERVAL"`
-	pollInterval   int    `env:"POLL_INTERVAL"`
+	Address        string `env:"ADDRESS"`
+	ReportInterval int    `env:"REPORT_INTERVAL"`
+	PollInterval   int    `env:"POLL_INTERVAL"`
 }
 
 func NewParseFlags() (map[string]interface{}, error) {
@@ -17,7 +17,6 @@ func NewParseFlags() (map[string]interface{}, error) {
 	if err := env.Parse(&cfg); err != nil {
 		return nil, fmt.Errorf("error parsing environment variables: %w", err)
 	}
-
 	var flagAddress string
 	var flagReportInterval int
 	var flagPollInterval int
@@ -30,9 +29,9 @@ func NewParseFlags() (map[string]interface{}, error) {
 		flagValue interface{}
 		envValue  interface{}
 	}{
-		"ADDRESS":         {flagAddress, cfg.address},
-		"REPORT_INTERVAL": {flagReportInterval, cfg.reportInterval},
-		"POLL_INTERVAL":   {flagPollInterval, cfg.pollInterval},
+		"ADDRESS":         {flagAddress, cfg.Address},
+		"REPORT_INTERVAL": {flagReportInterval, cfg.ReportInterval},
+		"POLL_INTERVAL":   {flagPollInterval, cfg.PollInterval},
 	}
 
 	result := make(map[string]interface{})
