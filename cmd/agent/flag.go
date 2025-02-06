@@ -2,29 +2,49 @@ package main
 
 import (
 	"flag"
+	"fmt"
 	"github.com/caarlos0/env/v11"
 )
 
-type Flags struct {
-	ServerAddress  string `env:"ADDRESS" envDefault:"localhost:8080"`
-	ReportInterval int    `env:"REPORT_INTERVAL" envDefault:"10"`
-	PollInterval   int    `env:"POLL_INTERVAL" envDefault:"2"`
+type NewConfig struct {
+	address        string `env:"ADDRESS"`
+	reportInterval int    `env:"REPORT_INTERVAL"`
+	pollInterval   int    `env:"POLL_INTERVAL"`
 }
 
-type config struct {
-	Home string `env:"HOME"`
-}
-
-func NewParseFlags() (*Flags, error) {
-	var f Flags
-	err := env.Parse(&f)
-	if err != nil {
-		return nil, err
+func NewParseFlags() (map[string]interface{}, error) {
+	var cfg NewConfig
+	if err := env.Parse(&cfg); err != nil {
+		return nil, fmt.Errorf("error parsing environment variables: %w", err)
 	}
-	flag.StringVar(&f.ServerAddress, "a", f.ServerAddress, "address and port destination server [ example usage : -a http://localhost:8080 ]")
-	flag.IntVar(&f.ReportInterval, "r", f.ReportInterval, "set the timeout for reports [ example usage : -r 2 ]")
-	flag.IntVar(&f.PollInterval, "p", f.PollInterval, "set the timeout for collect metrics [ example usage : -p 10s ]")
+
+	var flagAddress string
+	var flagReportInterval int
+	var flagPollInterval int
+	flag.StringVar(&flagAddress, "a", "localhost:8080", "address and port to run server")
+	flag.IntVar(&flagReportInterval, "r", 10, "interval between report calls")
+	flag.IntVar(&flagPollInterval, "p", 2, "interval between polls")
 	flag.Parse()
 
-	return &f, nil
+	params := map[string]struct {
+		flagValue interface{}
+		envValue  interface{}
+	}{
+		"ADDRESS":         {flagAddress, cfg.address},
+		"REPORT_INTERVAL": {flagReportInterval, cfg.reportInterval},
+		"POLL_INTERVAL":   {flagPollInterval, cfg.pollInterval},
+	}
+
+	result := make(map[string]interface{})
+	for k, v := range params {
+		if v.envValue != "" && v.envValue != 0 {
+			result[k] = v.envValue
+		} else {
+			result[k] = v.flagValue
+		}
+	}
+	for k, v := range result {
+		fmt.Printf("Key: %v, Value: %v\n", k, v)
+	}
+	return result, nil
 }

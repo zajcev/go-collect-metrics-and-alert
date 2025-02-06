@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"github.com/go-resty/resty/v2"
+	"github.com/spf13/cast"
 	"log"
 	"net/url"
 	"reflect"
@@ -55,17 +56,20 @@ func NewReporter(u string) {
 
 func main() {
 	f, err := NewParseFlags()
+	var a = cast.ToString(f["ADDRESS"])
+	var pi = cast.ToDuration(f["POLL_INTERVAL"])
+	var ri = cast.ToDuration(f["REPORT_INTERVAL"])
 	if err != nil {
 		log.Fatal(err)
 	}
-	monitorTimer := time.NewTicker(time.Duration(f.PollInterval) * time.Second)
-	reporterTimer := time.NewTicker(time.Duration(f.ReportInterval) * time.Second)
+	monitorTimer := time.NewTicker(pi * time.Second)
+	reporterTimer := time.NewTicker(ri * time.Second)
 	for {
 		select {
 		case <-monitorTimer.C:
 			NewMonitor()
 		case <-reporterTimer.C:
-			NewReporter("http://" + f.ServerAddress)
+			NewReporter("http://" + a)
 		}
 	}
 }
