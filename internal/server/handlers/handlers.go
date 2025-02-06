@@ -1,20 +1,23 @@
-package main
+package handlers
 
 import (
 	"fmt"
 	"github.com/go-chi/chi/v5"
+	"github.com/zajcev/go-collect-metrics-and-alert/internal/server/models"
 	"html/template"
 	"log"
 	"net/http"
 	"strconv"
 )
 
+var metrics = map[string]*models.MemStorage{}
+
 var htmlTemplate = `{{ range $key, $value := . }}
    <tr>Name: {{ $key }} Type: {{ .Mtype }} Value: {{ .Value }}</tr><br/>
 {{ end }}`
 
 // /update/{type}/{name}/{value}
-func updateMetricHandler(w http.ResponseWriter, r *http.Request) {
+func UpdateMetricHandler(w http.ResponseWriter, r *http.Request) {
 	if r.Method != "POST" {
 		w.WriteHeader(http.StatusMethodNotAllowed)
 	}
@@ -26,14 +29,14 @@ func updateMetricHandler(w http.ResponseWriter, r *http.Request) {
 		if err != nil {
 			w.WriteHeader(http.StatusBadRequest)
 		} else {
-			setGauge(metrics, mname, mtype, v)
+			models.SetGauge(metrics, mname, mtype, v)
 		}
 	} else if mtype == "counter" {
 		v, err := strconv.ParseInt(mvalue, 10, 64)
 		if err != nil {
 			w.WriteHeader(http.StatusBadRequest)
 		} else {
-			setCounter(metrics, mname, mtype, v)
+			models.SetCounter(metrics, mname, mtype, v)
 		}
 	} else {
 		w.WriteHeader(http.StatusBadRequest)
@@ -47,10 +50,10 @@ func updateMetricHandler(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func getMetricHandler(w http.ResponseWriter, r *http.Request) {
+func GetMetricHandler(w http.ResponseWriter, r *http.Request) {
 	mname := chi.URLParam(r, "name")
 	mtype := chi.URLParam(r, "type")
-	g := getMetricValue(metrics, mname, mtype)
+	g := models.GetMetricValue(metrics, mname, mtype)
 	if g != "" {
 		w.WriteHeader(http.StatusOK)
 		w.Header().Set("Content-Type", "application/text")
@@ -67,7 +70,7 @@ func getMetricHandler(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func getAllMetrics(w http.ResponseWriter, r *http.Request) {
+func GetAllMetrics(w http.ResponseWriter, r *http.Request) {
 	t := template.New("t")
 	t, err := t.Parse(htmlTemplate)
 	if err != nil {

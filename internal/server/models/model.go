@@ -1,4 +1,4 @@
-package main
+package models
 
 import (
 	"fmt"
@@ -10,7 +10,7 @@ type MemStorage struct {
 	Value interface{}
 }
 
-func getMetricValue(m map[string]*MemStorage, k string, t string) string {
+func GetMetricValue(m map[string]*MemStorage, k string, t string) string {
 	if m[k] != nil && m[k].Mtype == t {
 		return fmt.Sprintf("%v", m[k].Value)
 	} else {
@@ -18,7 +18,7 @@ func getMetricValue(m map[string]*MemStorage, k string, t string) string {
 	}
 }
 
-func setCounter(m map[string]*MemStorage, k string, t string, v int64) int {
+func SetCounter(m map[string]*MemStorage, k string, t string, v int64) int {
 	if m[k] != nil {
 		if m[k].Mtype == t {
 			m[k].Value = m[k].Value.(int64) + v
@@ -32,7 +32,7 @@ func setCounter(m map[string]*MemStorage, k string, t string, v int64) int {
 	}
 }
 
-func setGauge(m map[string]*MemStorage, k string, t string, v float64) int {
+func SetGauge(m map[string]*MemStorage, k string, t string, v float64) int {
 	if m[k] != nil {
 		if m[k].Mtype == t {
 			m[k] = &MemStorage{Mtype: t, Value: v}

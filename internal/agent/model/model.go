@@ -1,7 +1,6 @@
-package main
+package model
 
 import (
-	"math/rand"
 	"reflect"
 )
 
@@ -37,7 +36,7 @@ type Metrics struct {
 	RandomValue float64
 }
 
-func getValueByName(v interface{}, field string) interface{} {
+func GetValueByName(v interface{}, field string) interface{} {
 	r := reflect.ValueOf(v)
 	f := reflect.Indirect(r).FieldByName(field)
 	if !f.IsValid() {
@@ -46,21 +45,10 @@ func getValueByName(v interface{}, field string) interface{} {
 	return f.Interface()
 }
 
-func setFieldValue(obj interface{}, fieldName string, value interface{}) {
+func SetFieldValue(obj interface{}, fieldName string, value interface{}) {
 	v := reflect.ValueOf(obj).Elem().FieldByName(fieldName)
 	if !v.IsValid() || value == nil {
 		return
 	}
 	v.Set(reflect.ValueOf(value).Convert(v.Type()))
-}
-
-func addCustomMetric() {
-	setFieldValue(&m, "RandomValue", rand.Float64())
-	if getValueByName(&m, "PollCount") == nil {
-		setFieldValue(&m, "PollCount", int64(1))
-	} else {
-		counter = getValueByName(&m, "PollCount").(int64)
-		counter++
-		setFieldValue(&m, "PollCount", counter)
-	}
 }

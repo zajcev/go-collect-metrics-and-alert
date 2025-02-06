@@ -1,13 +1,16 @@
 package main
 
-import "testing"
+import (
+	"github.com/zajcev/go-collect-metrics-and-alert/internal/agent/model"
+	"testing"
+)
 
-var mtest Metrics
+var mtest model.Metrics
 
 func Test_monitor(t *testing.T) {
 	tests := []struct {
 		name    string
-		metric  Metrics
+		metric  model.Metrics
 		wantErr bool
 	}{
 		{
@@ -26,7 +29,7 @@ func Test_monitor(t *testing.T) {
 func Test_reporter(t *testing.T) {
 	tests := []struct {
 		name    string
-		metric  Metrics
+		metric  model.Metrics
 		wantErr bool
 	}{
 		{
