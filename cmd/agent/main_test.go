@@ -1,6 +1,7 @@
 package main
 
 import (
+	"github.com/zajcev/go-collect-metrics-and-alert/internal/agent/listeners"
 	"github.com/zajcev/go-collect-metrics-and-alert/internal/agent/model"
 	"testing"
 )
@@ -21,7 +22,7 @@ func Test_monitor(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			NewMonitor()
+			listeners.NewMonitor()
 		})
 	}
 }
@@ -40,7 +41,7 @@ func Test_reporter(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			NewReporter("http://localhost:8080")
+			listeners.NewReporter("http://localhost:8080")
 		})
 	}
 }
