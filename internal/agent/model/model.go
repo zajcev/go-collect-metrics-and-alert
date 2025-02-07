@@ -36,7 +36,7 @@ type Metrics struct {
 	RandomValue float64
 }
 
-func GetValueByName(v interface{}, field string) interface{} {
+func GetValueByName(v any, field string) interface{} {
 	r := reflect.ValueOf(v)
 	f := reflect.Indirect(r).FieldByName(field)
 	if !f.IsValid() {

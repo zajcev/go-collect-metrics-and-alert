@@ -17,6 +17,5 @@ func Router() chi.Router {
 }
 
 func main() {
-	config.ParseFlags()
-	log.Fatal(http.ListenAndServe(config.ListenAddress, Router()))
+	log.Fatal(http.ListenAndServe(config.ParseFlags(), Router()))
 }
