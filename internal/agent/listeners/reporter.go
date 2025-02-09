@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"github.com/go-resty/resty/v2"
 	"github.com/zajcev/go-collect-metrics-and-alert/internal/agent/model"
+	"github.com/zajcev/go-collect-metrics-and-alert/internal/constants"
 	"log"
 	"net/url"
 	"reflect"
@@ -25,9 +26,9 @@ func NewReporter(u string) {
 		p := "update"
 		v := model.GetValueByName(MemStorage, f.Name)
 		if reflect.TypeOf(v).String() == "float64" {
-			t = "gauge"
+			t = constants.Gauge
 		} else {
-			t = "counter"
+			t = constants.Counter
 		}
 		s := fmt.Sprintf("%v", v)
 		res := u.JoinPath(p, t, f.Name, s)

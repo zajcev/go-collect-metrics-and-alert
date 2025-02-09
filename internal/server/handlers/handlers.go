@@ -3,6 +3,7 @@ package handlers
 import (
 	"fmt"
 	"github.com/go-chi/chi/v5"
+	"github.com/zajcev/go-collect-metrics-and-alert/internal/constants"
 	"github.com/zajcev/go-collect-metrics-and-alert/internal/server/models"
 	"html/template"
 	"log"
@@ -10,10 +11,10 @@ import (
 	"strconv"
 )
 
-var metrics = map[string]*models.MemStorage{}
+var metrics = models.NewMetricsStorage()
 
-var htmlTemplate = `{{ range $key, $value := . }}
-   <tr>Name: {{ $key }} Type: {{ .Mtype }} Value: {{ .Value }}</tr><br/>
+var htmlTemplate = `{{ range $key, $value := .Metrics}}
+   <tr>Name: {{ $key }} Type: {{ .Type }} Value: {{ .Value }}</tr><br/>
 {{ end }}`
 
 // /update/{type}/{name}/{value}
@@ -24,19 +25,19 @@ func UpdateMetricHandler(w http.ResponseWriter, r *http.Request) {
 	mname := chi.URLParam(r, "name")
 	mtype := chi.URLParam(r, "type")
 	mvalue := chi.URLParam(r, "value")
-	if mtype == "gauge" {
+	if mtype == constants.Gauge {
 		v, err := strconv.ParseFloat(mvalue, 64)
 		if err != nil {
 			w.WriteHeader(http.StatusBadRequest)
 		} else {
-			models.SetGauge(metrics, mname, mtype, v)
+			metrics.SetGauge(mname, mtype, v)
 		}
-	} else if mtype == "counter" {
+	} else if mtype == constants.Counter {
 		v, err := strconv.ParseInt(mvalue, 10, 64)
 		if err != nil {
 			w.WriteHeader(http.StatusBadRequest)
 		} else {
-			models.SetCounter(metrics, mname, mtype, v)
+			metrics.SetCounter(mname, mtype, v)
 		}
 	} else {
 		w.WriteHeader(http.StatusBadRequest)
@@ -45,15 +46,12 @@ func UpdateMetricHandler(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		log.Fatalf("Error while close body: %v", err)
 	}
-	for k, v := range metrics {
-		fmt.Printf("key[%s] value[%s] \n -------------------------------------- \n", k, v)
-	}
 }
 
 func GetMetricHandler(w http.ResponseWriter, r *http.Request) {
 	mname := chi.URLParam(r, "name")
 	mtype := chi.URLParam(r, "type")
-	g := models.GetMetricValue(metrics, mname, mtype)
+	g := metrics.GetMetric(mname, mtype)
 	if g != "" {
 		w.WriteHeader(http.StatusOK)
 		w.Header().Set("Content-Type", "application/text")
@@ -71,6 +69,7 @@ func GetMetricHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func GetAllMetrics(w http.ResponseWriter, r *http.Request) {
+	fmt.Printf("%v", metrics)
 	t := template.New("t")
 	t, err := t.Parse(htmlTemplate)
 	if err != nil {
@@ -79,7 +78,7 @@ func GetAllMetrics(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "text/html")
 	err = t.Execute(w, metrics)
 	if err != nil {
-		panic(err)
+		panic("Failed to execute template: " + err.Error())
 	}
 	err = r.Body.Close()
 	if err != nil {

@@ -2,6 +2,7 @@ package listeners
 
 import (
 	"github.com/zajcev/go-collect-metrics-and-alert/internal/agent/model"
+	"log"
 	"math/rand"
 	"reflect"
 	"runtime"
@@ -14,7 +15,7 @@ func NewMonitor() {
 	for i := 0; i < mt.NumField(); i++ {
 		f := mt.Field(i)
 		model.SetFieldValue(&MemStorage, f.Name, model.GetValueByName(rt, f.Name))
-		//log.Printf("Monitor: Name: %v = Value: %v", f.Name, getValueByName(m, f.Name))
+		log.Printf("Monitor: Name: %v = Value: %v", f.Name, model.GetValueByName(rt, f.Name))
 	}
 	AddCustomMetric()
 }
