@@ -4,12 +4,14 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/zajcev/go-collect-metrics-and-alert/internal/server/config"
 	"github.com/zajcev/go-collect-metrics-and-alert/internal/server/handlers"
+	"github.com/zajcev/go-collect-metrics-and-alert/internal/server/logging"
 	"log"
 	"net/http"
 )
 
 func Router() chi.Router {
 	r := chi.NewRouter()
+	r.Use(logging.NewMiddleware)
 	r.Post("/update/{type}/{name}/{value}", handlers.UpdateMetricHandler)
 	r.Get("/value/{type}/{name}", handlers.GetMetricHandler)
 	r.Get("/", handlers.GetAllMetrics)
