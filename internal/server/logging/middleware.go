@@ -27,10 +27,9 @@ func NewMiddleware(wrappedHandler http.Handler) http.Handler {
 			zap.Duration("duration", time.Since(now)))
 		rw := newLoggingResponseWriter(w)
 		wrappedHandler.ServeHTTP(rw, r)
-		statusCode := rw.statusCode
 		logger.Info(
 			"Response data",
-			zap.Int("statusCode", statusCode),
+			zap.Int("statusCode", rw.statusCode),
 			zap.Int("contentLen", rw.contentLen),
 		)
 	})
@@ -43,4 +42,9 @@ func newLoggingResponseWriter(w http.ResponseWriter) *data {
 func (d *data) WriteHeader(code int) {
 	d.statusCode = code
 	d.ResponseWriter.WriteHeader(code)
+}
+
+func (d *data) Write(b []byte) (int, error) {
+	d.contentLen += len(b) // Вычисляем длину тела ответа
+	return d.ResponseWriter.Write(b)
 }
