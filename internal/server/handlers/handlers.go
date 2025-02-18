@@ -1,7 +1,8 @@
 package handlers
 
 import (
-	"fmt"
+	"bytes"
+	"encoding/json"
 	"github.com/go-chi/chi/v5"
 	"github.com/zajcev/go-collect-metrics-and-alert/internal/constants"
 	"github.com/zajcev/go-collect-metrics-and-alert/internal/server/models"
@@ -14,37 +15,71 @@ import (
 var metrics = models.NewMetricsStorage()
 
 var htmlTemplate = `{{ range $key, $value := .Metrics}}
-   <tr>Name: {{ $key }} Type: {{ .Type }} Value: {{ .Value }}</tr><br/>
+   <tr>Name: {{ $key }} Type: {{ .MType }} Value: {{if .Delta}}{{.Delta}}{{end}} {{if .Value}}{{.Value}}{{end}}</tr><br/>
 {{ end }}`
 
-// /update/{type}/{name}/{value}
 func UpdateMetricHandler(w http.ResponseWriter, r *http.Request) {
 	if r.Method != "POST" {
 		w.WriteHeader(http.StatusMethodNotAllowed)
 	}
-	mname := chi.URLParam(r, "name")
-	mtype := chi.URLParam(r, "type")
-	mvalue := chi.URLParam(r, "value")
-	if mtype == constants.Gauge {
-		v, err := strconv.ParseFloat(mvalue, 64)
-		if err != nil {
-			w.WriteHeader(http.StatusBadRequest)
+	if r.Header.Get("Content-Type") == "text/html" {
+		mname := chi.URLParam(r, "name")
+		mtype := chi.URLParam(r, "type")
+		mvalue := chi.URLParam(r, "value")
+		if mtype == constants.Gauge {
+			v, err := strconv.ParseFloat(mvalue, 64)
+			if err != nil {
+				w.WriteHeader(http.StatusBadRequest)
+			} else {
+				metrics.SetGauge(mname, mtype, v)
+			}
+		} else if mtype == constants.Counter {
+			v, err := strconv.ParseInt(mvalue, 10, 64)
+			if err != nil {
+				w.WriteHeader(http.StatusBadRequest)
+			} else {
+				metrics.SetCounter(mname, mtype, v)
+			}
 		} else {
-			metrics.SetGauge(mname, mtype, v)
+			w.WriteHeader(http.StatusBadRequest)
 		}
-	} else if mtype == constants.Counter {
-		v, err := strconv.ParseInt(mvalue, 10, 64)
+		err := r.Body.Close()
 		if err != nil {
-			w.WriteHeader(http.StatusBadRequest)
-		} else {
-			metrics.SetCounter(mname, mtype, v)
+			log.Fatalf("Error while close body: %v", err)
 		}
 	} else {
 		w.WriteHeader(http.StatusBadRequest)
 	}
-	err := r.Body.Close()
-	if err != nil {
-		log.Fatalf("Error while close body: %v", err)
+}
+func UpdateMetricHandlerJson(w http.ResponseWriter, r *http.Request) {
+	if r.Header.Get("Content-Type") == "application/json" {
+		var m models.Metric
+		var buf bytes.Buffer
+		_, err := buf.ReadFrom(r.Body)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusBadRequest)
+			return
+		}
+		if err = json.Unmarshal(buf.Bytes(), &m); err != nil {
+			http.Error(w, err.Error(), http.StatusBadRequest)
+			return
+		} else {
+			if m.MType == constants.Gauge {
+				metrics.SetGaugeJson(m)
+			} else if m.MType == constants.Counter {
+				metrics.SetCounterJson(m)
+			}
+		}
+		resp, err := json.Marshal(&m)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusOK)
+		w.Write(resp)
+	} else {
+		w.WriteHeader(http.StatusBadRequest)
 	}
 }
 
@@ -68,8 +103,30 @@ func GetMetricHandler(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+func GetMetricHandlerJson(w http.ResponseWriter, r *http.Request) {
+	var m models.Metric
+	var buf bytes.Buffer
+	_, err := buf.ReadFrom(r.Body)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+	if err = json.Unmarshal(buf.Bytes(), &m); err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+	value, code := metrics.GetMetricJson(m)
+	resp, err := json.Marshal(value)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(code)
+	w.Write(resp)
+}
+
 func GetAllMetrics(w http.ResponseWriter, r *http.Request) {
-	fmt.Printf("%v", metrics)
 	t := template.New("t")
 	t, err := t.Parse(htmlTemplate)
 	if err != nil {
@@ -84,4 +141,16 @@ func GetAllMetrics(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		return
 	}
+
+}
+
+func GetAllMetricsJSON(w http.ResponseWriter, r *http.Request) {
+	m := metrics.GetAllMetrics()
+	resp, err := json.Marshal(&m)
+	if err != nil {
+		log.Fatalf("Response: %v \n Error while writing response: %v", resp, err)
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	w.Write(resp)
 }
