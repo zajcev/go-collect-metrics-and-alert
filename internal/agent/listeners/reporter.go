@@ -17,7 +17,7 @@ var MemStorage model.Metrics
 func NewReporter(u string) {
 	mt := reflect.TypeOf(MemStorage)
 	for i := 0; i < mt.NumField(); i++ {
-		mj := model.MetricJson{}
+		mj := model.MetricJSON{}
 		f := mt.Field(i)
 		mj.ID = f.Name
 		var t string
