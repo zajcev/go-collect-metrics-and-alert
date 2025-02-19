@@ -40,10 +40,12 @@ func NewReporter(u string) {
 		if err != nil {
 			log.Fatalf("Error marshalling json: %v", err)
 		}
-		post, err := http.Post(u.String(), "application/json", bytes.NewBuffer(req))
+
+		resp, err := http.Post(u.String(), "application/json", bytes.NewBuffer(req))
 		if err != nil {
-			log.Printf("Error posting json: %v", err)
+			log.Printf("Error making POST request: %v", err)
+			return
 		}
-		defer post.Body.Close()
+		defer resp.Body.Close()
 	}
 }
