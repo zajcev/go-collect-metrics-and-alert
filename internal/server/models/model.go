@@ -46,7 +46,7 @@ func (ms *MemStorage) SetCounter(name string, metricType string, value int64) in
 	return http.StatusOK
 }
 
-func (ms *MemStorage) SetCounterJson(input Metric) int {
+func (ms *MemStorage) SetCounterJSON(input Metric) int {
 	m, exist := ms.Metrics[input.ID]
 	if !exist {
 		ms.Metrics[input.ID] = input
@@ -60,7 +60,7 @@ func (ms *MemStorage) SetCounterJson(input Metric) int {
 	return http.StatusOK
 }
 
-func (ms *MemStorage) SetGaugeJson(input Metric) int {
+func (ms *MemStorage) SetGaugeJSON(input Metric) int {
 	if input.Value == nil {
 		return http.StatusBadRequest
 	}
@@ -82,7 +82,7 @@ func (ms *MemStorage) GetMetric(name string, metricType string) string {
 	}
 }
 
-func (ms *MemStorage) GetMetricJson(input Metric) (Metric, int) {
+func (ms *MemStorage) GetMetricJSON(input Metric) (Metric, int) {
 	m, exist := ms.Metrics[input.ID]
 	if exist {
 		input = m

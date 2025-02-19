@@ -17,6 +17,6 @@ func main() {
 		log.Fatal(err)
 	}
 	gocron.Every(pi).Second().Do(listeners.NewMonitor)
-	gocron.Every(ri).Second().Do(listeners.NewReporter, "http://"+a)
+	gocron.Every(ri).Second().Do(listeners.NewReporter, "http://"+a+"/update")
 	<-gocron.Start()
 }

@@ -22,36 +22,32 @@ func UpdateMetricHandler(w http.ResponseWriter, r *http.Request) {
 	if r.Method != "POST" {
 		w.WriteHeader(http.StatusMethodNotAllowed)
 	}
-	if r.Header.Get("Content-Type") == "text/html" {
-		mname := chi.URLParam(r, "name")
-		mtype := chi.URLParam(r, "type")
-		mvalue := chi.URLParam(r, "value")
-		if mtype == constants.Gauge {
-			v, err := strconv.ParseFloat(mvalue, 64)
-			if err != nil {
-				w.WriteHeader(http.StatusBadRequest)
-			} else {
-				metrics.SetGauge(mname, mtype, v)
-			}
-		} else if mtype == constants.Counter {
-			v, err := strconv.ParseInt(mvalue, 10, 64)
-			if err != nil {
-				w.WriteHeader(http.StatusBadRequest)
-			} else {
-				metrics.SetCounter(mname, mtype, v)
-			}
-		} else {
-			w.WriteHeader(http.StatusBadRequest)
-		}
-		err := r.Body.Close()
+	mname := chi.URLParam(r, "name")
+	mtype := chi.URLParam(r, "type")
+	mvalue := chi.URLParam(r, "value")
+	if mtype == constants.Gauge {
+		v, err := strconv.ParseFloat(mvalue, 64)
 		if err != nil {
-			log.Fatalf("Error while close body: %v", err)
+			w.WriteHeader(http.StatusBadRequest)
+		} else {
+			metrics.SetGauge(mname, mtype, v)
+		}
+	} else if mtype == constants.Counter {
+		v, err := strconv.ParseInt(mvalue, 10, 64)
+		if err != nil {
+			w.WriteHeader(http.StatusBadRequest)
+		} else {
+			metrics.SetCounter(mname, mtype, v)
 		}
 	} else {
 		w.WriteHeader(http.StatusBadRequest)
 	}
+	err := r.Body.Close()
+	if err != nil {
+		log.Fatalf("Error while close body: %v", err)
+	}
 }
-func UpdateMetricHandlerJson(w http.ResponseWriter, r *http.Request) {
+func UpdateMetricHandlerJSON(w http.ResponseWriter, r *http.Request) {
 	if r.Header.Get("Content-Type") == "application/json" {
 		var m models.Metric
 		var buf bytes.Buffer
@@ -65,9 +61,9 @@ func UpdateMetricHandlerJson(w http.ResponseWriter, r *http.Request) {
 			return
 		} else {
 			if m.MType == constants.Gauge {
-				metrics.SetGaugeJson(m)
+				metrics.SetGaugeJSON(m)
 			} else if m.MType == constants.Counter {
-				metrics.SetCounterJson(m)
+				metrics.SetCounterJSON(m)
 			}
 		}
 		resp, err := json.Marshal(&m)
@@ -103,7 +99,7 @@ func GetMetricHandler(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func GetMetricHandlerJson(w http.ResponseWriter, r *http.Request) {
+func GetMetricHandlerJSON(w http.ResponseWriter, r *http.Request) {
 	var m models.Metric
 	var buf bytes.Buffer
 	_, err := buf.ReadFrom(r.Body)
@@ -115,7 +111,7 @@ func GetMetricHandlerJson(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
-	value, code := metrics.GetMetricJson(m)
+	value, code := metrics.GetMetricJSON(m)
 	resp, err := json.Marshal(value)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
