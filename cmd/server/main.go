@@ -14,7 +14,7 @@ func Router() chi.Router {
 	r.Use(logging.NewMiddleware)
 	r.Post("/update/{type}/{name}/{value}", handlers.UpdateMetricHandler)
 	r.Post("/update", handlers.UpdateMetricHandlerJSON)
-	r.Post("/value", handlers.GetMetricHandlerJSON)
+	r.Post("/value/", handlers.GetMetricHandlerJSON)
 	r.Get("/value/{type}/{name}", handlers.GetMetricHandler)
 	r.Get("/", handlers.GetAllMetrics)
 	r.Get("/json", handlers.GetAllMetricsJSON)
