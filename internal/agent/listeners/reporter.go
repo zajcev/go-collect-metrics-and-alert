@@ -4,9 +4,11 @@ import (
 	"bytes"
 	"compress/gzip"
 	"encoding/json"
+	"fmt"
 	"github.com/zajcev/go-collect-metrics-and-alert/internal/agent/model"
 	"github.com/zajcev/go-collect-metrics-and-alert/internal/constants"
 	"github.com/zajcev/go-collect-metrics-and-alert/internal/convert"
+	"io"
 	"log"
 	"net/http"
 	"net/url"
@@ -69,17 +71,17 @@ func NewReporter(u string) {
 		}
 		defer resp.Body.Close()
 
-		//gzReader, err := gzip.NewReader(resp.Body)
-		//if err != nil {
-		//	log.Fatalf("Error creating gzip reader: %v", err)
-		//}
-		//defer gzReader.Close()
+		gzReader, err := gzip.NewReader(resp.Body)
+		if err != nil {
+			log.Fatalf("Error creating gzip reader: %v", err)
+		}
+		defer gzReader.Close()
 
-		//body, err := io.ReadAll(gzReader)
-		//if err != nil {
-		//	log.Fatalf("Error reading response body: %v", err)
-		//}
-		//
-		//fmt.Printf("Response body: %s\n", body)
+		body, err := io.ReadAll(gzReader)
+		if err != nil {
+			log.Fatalf("Error reading response body: %v", err)
+		}
+
+		fmt.Printf("Response body: %s\n", body)
 	}
 }
