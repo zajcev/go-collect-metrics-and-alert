@@ -30,14 +30,14 @@ func UpdateMetricHandler(w http.ResponseWriter, r *http.Request) {
 		if err != nil {
 			w.WriteHeader(http.StatusBadRequest)
 		} else {
-			w.WriteHeader(metrics.SetGauge(mname, mtype, v))
+			metrics.SetGauge(mname, mtype, v)
 		}
 	} else if mtype == constants.Counter {
 		v, err := strconv.ParseInt(mvalue, 10, 64)
 		if err != nil {
 			w.WriteHeader(http.StatusBadRequest)
 		} else {
-			w.WriteHeader(metrics.SetCounter(mname, mtype, v))
+			metrics.SetCounter(mname, mtype, v)
 		}
 	} else {
 		w.WriteHeader(http.StatusBadRequest)
@@ -66,8 +66,7 @@ func UpdateMetricHandlerJSON(w http.ResponseWriter, r *http.Request) {
 				metrics.SetCounterJSON(m)
 			}
 		}
-		result, _ := metrics.GetMetricJSON(m)
-		resp, err := json.Marshal(result)
+		resp, err := json.Marshal(&m)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
