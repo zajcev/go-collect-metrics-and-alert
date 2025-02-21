@@ -53,19 +53,17 @@ func NewReporter(u string) {
 			return
 		}
 
-		client := http.Client{}
-		request, err := http.NewRequest(http.MethodPost, fu.String(), &buf)
-		if err != nil {
-			log.Printf("Error creating request: %v", err)
-		}
-		request.Header.Set("Content-Type", "application/json")
-		request.Header.Set("Content-Encoding", "gzip")
+		client := &http.Client{}
+		request, err := http.NewRequest("POST", fu.String(), &buf)
+		request.Header.Add("Content-Encoding", "gzip")
+		request.Header.Add("Accept-Encoding", "gzip")
+		request.Header.Add("Content-Type", "application/json")
 
-		response, err := client.Do(request)
-		if err != nil || response == nil {
-			log.Printf("Error making POST request: %v", err)
-		} else {
-			defer response.Body.Close()
+		resp, err := client.Do(request)
+		if err != nil {
+			log.Printf("Error making request: %v", err)
+			return
 		}
+		defer resp.Body.Close()
 	}
 }
