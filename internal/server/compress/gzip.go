@@ -103,7 +103,3 @@ type responseWriterWrapper struct {
 func (w *responseWriterWrapper) Write(b []byte) (int, error) {
 	return w.body.Write(b)
 }
-
-func (w *responseWriterWrapper) WriteHeader(statusCode int) {
-	w.statusCode = statusCode
-}
