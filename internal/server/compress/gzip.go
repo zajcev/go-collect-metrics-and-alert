@@ -86,7 +86,6 @@ func GzipMiddleware(h http.Handler) http.Handler {
 						w.Header().Add(key, value)
 					}
 				}
-				w.WriteHeader(wrw.statusCode)
 				w.Write([]byte(wrw.body.String()))
 			}
 		} else {
@@ -102,9 +101,6 @@ type responseWriterWrapper struct {
 }
 
 func (w *responseWriterWrapper) Write(b []byte) (int, error) {
-	if w.statusCode == 0 {
-		w.statusCode = http.StatusOK
-	}
 	return w.body.Write(b)
 }
 
