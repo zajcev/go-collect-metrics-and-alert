@@ -7,7 +7,6 @@ import (
 	"github.com/zajcev/go-collect-metrics-and-alert/internal/agent/model"
 	"github.com/zajcev/go-collect-metrics-and-alert/internal/constants"
 	"github.com/zajcev/go-collect-metrics-and-alert/internal/convert"
-	"io"
 	"log"
 	"net/http"
 	"net/url"
@@ -63,14 +62,10 @@ func NewReporter(u string) {
 		request.Header.Set("Content-Encoding", "gzip")
 
 		response, err := client.Do(request)
-		if err != nil {
+		if err != nil || response == nil {
 			log.Printf("Error making POST request: %v", err)
 		} else {
-			_, err := io.ReadAll(response.Body)
-			if err != nil {
-				log.Printf("Error reading response body: %v", err)
-			}
+			defer response.Body.Close()
 		}
-		response.Body.Close()
 	}
 }
