@@ -23,7 +23,7 @@ func NewReporter(u string) {
 		f := mt.Field(i)
 		mj.ID = f.Name
 		var t string
-		finalUrl, err := url.Parse(u)
+		fu, err := url.Parse(u)
 		if err != nil {
 			log.Fatal(err)
 		}
@@ -55,7 +55,7 @@ func NewReporter(u string) {
 		}
 
 		client := http.Client{}
-		request, err := http.NewRequest(http.MethodPost, finalUrl.String(), &buf)
+		request, err := http.NewRequest(http.MethodPost, fu.String(), &buf)
 		if err != nil {
 			log.Printf("Error creating request: %v", err)
 		}
