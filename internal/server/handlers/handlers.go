@@ -30,14 +30,14 @@ func UpdateMetricHandler(w http.ResponseWriter, r *http.Request) {
 		if err != nil {
 			w.WriteHeader(http.StatusBadRequest)
 		} else {
-			metrics.SetGauge(mname, mtype, v)
+			w.WriteHeader(metrics.SetGauge(mname, mtype, v))
 		}
 	} else if mtype == constants.Counter {
 		v, err := strconv.ParseInt(mvalue, 10, 64)
 		if err != nil {
 			w.WriteHeader(http.StatusBadRequest)
 		} else {
-			metrics.SetCounter(mname, mtype, v)
+			w.WriteHeader(metrics.SetCounter(mname, mtype, v))
 		}
 	} else {
 		w.WriteHeader(http.StatusBadRequest)
