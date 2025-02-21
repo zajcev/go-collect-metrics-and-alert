@@ -11,7 +11,7 @@ import (
 
 func Router() chi.Router {
 	r := chi.NewRouter()
-	//r.Use(compress.GzipMiddleware)
+	//compress.GzipMiddleware)
 	r.Use(logging.ZapMiddleware)
 	r.Post("/update/{type}/{name}/{value}", handlers.UpdateMetricHandler)
 	r.Post("/update/", handlers.UpdateMetricHandlerJSON)
