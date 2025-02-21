@@ -28,6 +28,9 @@ func (c *compressWriter) Write(p []byte) (int, error) {
 }
 
 func (c *compressWriter) WriteHeader(statusCode int) {
+	if statusCode < 300 {
+		c.w.Header().Set("Content-Encoding", "gzip")
+	}
 	c.w.WriteHeader(statusCode)
 }
 
@@ -63,25 +66,11 @@ func (c *compressReader) Close() error {
 	return c.zr.Close()
 }
 
-type responseWriterWrapper struct {
-	http.ResponseWriter
-	body       strings.Builder
-	statusCode int
-}
-
-func (w *responseWriterWrapper) Write(b []byte) (int, error) {
-	if w.statusCode == 0 {
-		w.statusCode = http.StatusOK
-	}
-	return w.body.Write(b)
-}
-
-func (w *responseWriterWrapper) WriteHeader(statusCode int) {
-	w.statusCode = statusCode
-}
-
 func GzipMiddleware(h http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		ow := w
+
+		// Request
 		contentEncoding := r.Header.Get("Content-Encoding")
 		sendsGzip := strings.Contains(contentEncoding, "gzip")
 		if sendsGzip {
@@ -94,32 +83,18 @@ func GzipMiddleware(h http.Handler) http.Handler {
 			defer cr.Close()
 		}
 
+		// Response
 		acceptEncoding := r.Header.Get("Accept-Encoding")
 		supportsGzip := strings.Contains(acceptEncoding, "gzip")
 		if supportsGzip {
-			wrw := &responseWriterWrapper{ResponseWriter: w}
-
-			h.ServeHTTP(wrw, r)
-
-			contentType := wrw.Header().Get("Content-Type")
-			if contentType == "application/json" || contentType == "text/html" {
-				w.Header().Set("Content-Encoding", "gzip")
-				gz := gzip.NewWriter(w)
-				defer gz.Close()
-
-				gz.Write([]byte(wrw.body.String()))
-			} else {
-
-				for key, values := range wrw.Header() {
-					for _, value := range values {
-						w.Header().Add(key, value)
-					}
-				}
-				w.WriteHeader(wrw.statusCode)
-				w.Write([]byte(wrw.body.String()))
+			contentType := r.Header.Get("Content-Type")
+			if strings.Contains(contentType, "application/json") || strings.Contains(contentType, "text/html") {
+				cw := newCompressWriter(w)
+				ow = cw
+				defer cw.Close()
 			}
-		} else {
-			h.ServeHTTP(w, r)
 		}
+
+		h.ServeHTTP(ow, r)
 	})
 }
