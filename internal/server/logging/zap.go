@@ -12,7 +12,7 @@ type data struct {
 	contentLen int
 }
 
-func NewMiddleware(wrappedHandler http.Handler) http.Handler {
+func ZapMiddleware(wrappedHandler http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		now := time.Now()
 		logger, err := zap.NewProduction()
@@ -45,6 +45,6 @@ func (d *data) WriteHeader(code int) {
 }
 
 func (d *data) Write(b []byte) (int, error) {
-	d.contentLen += len(b) // Вычисляем длину тела ответа
+	d.contentLen += len(b)
 	return d.ResponseWriter.Write(b)
 }

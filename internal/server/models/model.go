@@ -1,8 +1,8 @@
 package models
 
 import (
-	"github.com/zajcev/go-collect-metrics-and-alert/internal/cast"
 	"github.com/zajcev/go-collect-metrics-and-alert/internal/constants"
+	"github.com/zajcev/go-collect-metrics-and-alert/internal/convert"
 	"net/http"
 )
 
@@ -74,9 +74,9 @@ func (ms *MemStorage) GetMetric(name string, metricType string) string {
 		return ""
 	}
 	if metricType == constants.Gauge {
-		return cast.GetString(metric.Value)
+		return convert.GetString(metric.Value)
 	} else if metricType == constants.Counter {
-		return cast.GetString(metric.Delta)
+		return convert.GetString(metric.Delta)
 	} else {
 		return ""
 	}

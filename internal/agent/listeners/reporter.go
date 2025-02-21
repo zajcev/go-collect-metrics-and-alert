@@ -2,10 +2,12 @@ package listeners
 
 import (
 	"bytes"
+	"compress/gzip"
 	"encoding/json"
 	"github.com/zajcev/go-collect-metrics-and-alert/internal/agent/model"
-	"github.com/zajcev/go-collect-metrics-and-alert/internal/cast"
 	"github.com/zajcev/go-collect-metrics-and-alert/internal/constants"
+	"github.com/zajcev/go-collect-metrics-and-alert/internal/convert"
+	"io"
 	"log"
 	"net/http"
 	"net/url"
@@ -21,18 +23,18 @@ func NewReporter(u string) {
 		f := mt.Field(i)
 		mj.ID = f.Name
 		var t string
-		u, err := url.Parse(u)
+		finalUrl, err := url.Parse(u)
 		if err != nil {
 			log.Fatal(err)
 		}
 		v := model.GetValueByName(MemStorage, f.Name)
 		if reflect.TypeOf(v).String() == "float64" {
 			t = constants.Gauge
-			result := cast.GetFloat(v)
+			result := convert.GetFloat(v)
 			mj.Value = &result
 		} else if reflect.TypeOf(v).String() == "int64" {
 			t = constants.Counter
-			result := cast.GetInt64(v)
+			result := convert.GetInt64(v)
 			mj.Delta = &result
 		}
 		mj.MType = t
@@ -41,11 +43,34 @@ func NewReporter(u string) {
 			log.Fatalf("Error marshalling json: %v", err)
 		}
 
-		resp, err := http.Post(u.String(), "application/json", bytes.NewBuffer(req))
-		if err != nil {
-			log.Printf("Error making POST request: %v", err)
+		var buf bytes.Buffer
+		g := gzip.NewWriter(&buf)
+		if _, err = g.Write(req); err != nil {
+			log.Fatalf("Error compressing json: %v", err)
 			return
 		}
-		defer resp.Body.Close()
+		if err = g.Close(); err != nil {
+			log.Fatalf("Error compressing json: %v", err)
+			return
+		}
+
+		client := http.Client{}
+		request, err := http.NewRequest(http.MethodPost, finalUrl.String(), &buf)
+		if err != nil {
+			log.Printf("Error creating request: %v", err)
+		}
+		request.Header.Set("Content-Type", "application/json")
+		request.Header.Set("Content-Encoding", "gzip")
+
+		response, err := client.Do(request)
+		if err != nil {
+			log.Printf("Error making POST request: %v", err)
+		} else {
+			_, err := io.ReadAll(response.Body)
+			if err != nil {
+				log.Printf("Error reading response body: %v", err)
+			}
+		}
+		response.Body.Close()
 	}
 }
