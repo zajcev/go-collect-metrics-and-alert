@@ -55,6 +55,9 @@ func NewReporter(u string) {
 
 		client := &http.Client{}
 		request, err := http.NewRequest("POST", fu.String(), &buf)
+		if err != nil {
+			log.Fatalf("Error creating request: %v", err)
+		}
 		request.Header.Add("Content-Encoding", "gzip")
 		request.Header.Add("Accept-Encoding", "gzip")
 		request.Header.Add("Content-Type", "application/json")
