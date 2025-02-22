@@ -6,6 +6,7 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/zajcev/go-collect-metrics-and-alert/internal/constants"
 	"github.com/zajcev/go-collect-metrics-and-alert/internal/server/models"
+	"github.com/zajcev/go-collect-metrics-and-alert/internal/server/storage"
 	"html/template"
 	"log"
 	"net/http"
@@ -149,4 +150,20 @@ func GetAllMetricsJSON(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
 	w.Write(resp)
+}
+
+func RestoreMetricStorage(file string) {
+	consumer, err := storage.NewConsumer(file)
+	if err != nil {
+		return
+	}
+	metrics, err = consumer.ReadMetrics()
+}
+
+func SaveMetricStorage(file string) {
+	producer, err := storage.NewProducer(file)
+	if err != nil {
+		return
+	}
+	producer.WriteMetrics(metrics)
 }
