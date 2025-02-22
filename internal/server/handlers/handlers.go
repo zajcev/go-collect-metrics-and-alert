@@ -66,8 +66,7 @@ func UpdateMetricHandlerJSON(w http.ResponseWriter, r *http.Request) {
 				metrics.SetCounterJSON(m)
 			}
 		}
-		result, _ := metrics.GetMetricJSON(m)
-		resp, err := json.Marshal(result)
+		resp, err := json.Marshal(&m)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
