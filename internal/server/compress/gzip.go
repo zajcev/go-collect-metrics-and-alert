@@ -8,19 +8,27 @@ import (
 )
 
 type compressWriter struct {
-	http.ResponseWriter
+	w  http.ResponseWriter
 	zw *gzip.Writer
 }
 
 func newCompressWriter(w http.ResponseWriter) *compressWriter {
 	return &compressWriter{
-		ResponseWriter: w,
-		zw:             gzip.NewWriter(w),
+		w:  w,
+		zw: gzip.NewWriter(w),
 	}
+}
+
+func (c *compressWriter) Header() http.Header {
+	return c.w.Header()
 }
 
 func (c *compressWriter) Write(p []byte) (int, error) {
 	return c.zw.Write(p)
+}
+
+func (c *compressWriter) WriteHeader(statusCode int) {
+	c.w.WriteHeader(statusCode)
 }
 
 func (c *compressWriter) Close() error {
@@ -28,7 +36,7 @@ func (c *compressWriter) Close() error {
 }
 
 type compressReader struct {
-	io.ReadCloser
+	r  io.ReadCloser
 	zr *gzip.Reader
 }
 
@@ -37,21 +45,39 @@ func newCompressReader(r io.ReadCloser) (*compressReader, error) {
 	if err != nil {
 		return nil, err
 	}
+
 	return &compressReader{
-		ReadCloser: r,
-		zr:         zr,
+		r:  r,
+		zr: zr,
 	}, nil
 }
 
-func (c *compressReader) Read(p []byte) (int, error) {
+func (c compressReader) Read(p []byte) (n int, err error) {
 	return c.zr.Read(p)
 }
 
 func (c *compressReader) Close() error {
-	if err := c.zr.Close(); err != nil {
+	if err := c.r.Close(); err != nil {
 		return err
 	}
-	return c.ReadCloser.Close()
+	return c.zr.Close()
+}
+
+type responseWriterWrapper struct {
+	http.ResponseWriter
+	body       strings.Builder
+	statusCode int
+}
+
+func (w *responseWriterWrapper) Write(b []byte) (int, error) {
+	if w.statusCode == 0 {
+		w.statusCode = http.StatusOK
+	}
+	return w.body.Write(b)
+}
+
+func (w *responseWriterWrapper) WriteHeader(statusCode int) {
+	w.statusCode = statusCode
 }
 
 func GzipMiddleware(h http.Handler) http.Handler {
@@ -72,6 +98,7 @@ func GzipMiddleware(h http.Handler) http.Handler {
 		supportsGzip := strings.Contains(acceptEncoding, "gzip")
 		if supportsGzip {
 			wrw := &responseWriterWrapper{ResponseWriter: w}
+
 			h.ServeHTTP(wrw, r)
 
 			contentType := wrw.Header().Get("Content-Type")
@@ -79,27 +106,20 @@ func GzipMiddleware(h http.Handler) http.Handler {
 				w.Header().Set("Content-Encoding", "gzip")
 				gz := gzip.NewWriter(w)
 				defer gz.Close()
+
 				gz.Write([]byte(wrw.body.String()))
 			} else {
+
 				for key, values := range wrw.Header() {
 					for _, value := range values {
 						w.Header().Add(key, value)
 					}
 				}
+				w.WriteHeader(wrw.statusCode)
 				w.Write([]byte(wrw.body.String()))
 			}
 		} else {
 			h.ServeHTTP(w, r)
 		}
 	})
-}
-
-type responseWriterWrapper struct {
-	http.ResponseWriter
-	body       strings.Builder
-	statusCode int
-}
-
-func (w *responseWriterWrapper) Write(b []byte) (int, error) {
-	return w.body.Write(b)
 }
