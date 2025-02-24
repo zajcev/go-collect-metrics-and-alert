@@ -24,7 +24,7 @@ func NewProducer(fileName string) (*Producer, error) {
 }
 
 func (p *Producer) WriteMetrics(metrics *models.MemStorage) error {
-	return p.encoder.Encode(&metrics)
+	return p.encoder.Encode(metrics)
 }
 
 func (p *Producer) Close() error {
@@ -49,12 +49,12 @@ func NewConsumer(fileName string) (*Consumer, error) {
 }
 
 func (c *Consumer) ReadMetrics() (*models.MemStorage, error) {
-	metric := &models.MemStorage{}
+	metric := models.MemStorage{}
 	if err := c.decoder.Decode(&metric); err != nil {
 		return nil, err
 	}
 
-	return metric, nil
+	return &metric, nil
 }
 
 func (c *Consumer) Close() error {
