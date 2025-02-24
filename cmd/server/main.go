@@ -25,9 +25,7 @@ func Router() chi.Router {
 
 func main() {
 	env := config.ParseFlags()
-	go func() {
-		log.Fatal(http.ListenAndServe(env.Address, Router()))
-	}()
+	log.Fatal(http.ListenAndServe(env.Address, Router()))
 	//if env.Restore {
 	//	handlers.RestoreMetricStorage(env.FilePath)
 	//}
