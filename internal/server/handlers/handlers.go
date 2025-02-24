@@ -159,9 +159,13 @@ func GetAllMetricsJSON(w http.ResponseWriter, r *http.Request) {
 func RestoreMetricStorage(file string) {
 	consumer, err := storage.NewConsumer(file)
 	if err != nil {
+		log.Printf("Error while init file consumer %v", err)
 		return
 	}
 	metrics, err = consumer.ReadMetrics()
+	if err != nil {
+		log.Printf("Error while read metric %v", err)
+	}
 }
 
 func SaveMetricStorage(file string) {

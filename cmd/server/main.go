@@ -30,9 +30,9 @@ func main() {
 	}
 	env := config.GetFlags()
 	//go func() {
-	//	if env.Restore {
-	//		handlers.RestoreMetricStorage(env.FilePath)
-	//	}
+	if env.Restore {
+		handlers.RestoreMetricStorage(env.FilePath)
+	}
 	//	if env.StoreInterval != 0 {
 	//		gocron.Every(convert.GetUint(env.StoreInterval)).Second().Do(handlers.SaveMetricStorage, env.FilePath)
 	//		<-gocron.Start()
