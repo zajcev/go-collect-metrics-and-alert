@@ -6,6 +6,8 @@ import (
 	"log"
 )
 
+var flags Flags
+
 type Flags struct {
 	Address       string `env:"ADDRESS"`
 	StoreInterval int    `env:"STORE_INTERVAL"`
@@ -13,17 +15,19 @@ type Flags struct {
 	Restore       bool   `env:"RESTORE"`
 }
 
-func ParseFlags() Flags {
-	f := Flags{}
-	flag.StringVar(&f.Address, "a", "localhost:8080", "address and port to run server")
-	flag.IntVar(&f.StoreInterval, "i", 300, "interval between stored files")
-	flag.StringVar(&f.FilePath, "f", "/tmp/metrics", "path to store files")
-	flag.BoolVar(&f.Restore, "r", false, "restore files")
+func ParseFlags() error {
+	flag.StringVar(&flags.Address, "a", "localhost:8080", "address and port to run server")
+	flag.IntVar(&flags.StoreInterval, "i", 300, "interval between stored files")
+	flag.StringVar(&flags.FilePath, "f", "/tmp/metrics", "path to store files")
+	flag.BoolVar(&flags.Restore, "r", false, "restore files")
 	flag.Parse()
-
-	if err := env.Parse(&f); err != nil {
+	if err := env.Parse(&flags); err != nil {
 		log.Printf("%+v", err)
+		return err
 	}
+	return nil
+}
 
-	return f
+func GetFlags() *Flags {
+	return &flags
 }

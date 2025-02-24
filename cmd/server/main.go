@@ -2,6 +2,8 @@ package main
 
 import (
 	"github.com/go-chi/chi/v5"
+	"github.com/jasonlvhit/gocron"
+	"github.com/zajcev/go-collect-metrics-and-alert/internal/convert"
 	"github.com/zajcev/go-collect-metrics-and-alert/internal/server/compress"
 	"github.com/zajcev/go-collect-metrics-and-alert/internal/server/config"
 	"github.com/zajcev/go-collect-metrics-and-alert/internal/server/handlers"
@@ -24,15 +26,19 @@ func Router() chi.Router {
 }
 
 func main() {
-	env := config.ParseFlags()
+	err := config.ParseFlags()
+	if err != nil {
+		log.Printf("Error: %v\n", err)
+	}
+	env := config.GetFlags()
+	go func() {
+		if env.Restore {
+			handlers.RestoreMetricStorage(env.FilePath)
+		}
+		if env.StoreInterval != 0 {
+			gocron.Every(convert.GetUint(env.StoreInterval)).Second().Do(handlers.SaveMetricStorage, env.FilePath)
+			<-gocron.Start()
+		}
+	}()
 	log.Fatal(http.ListenAndServe(env.Address, Router()))
-	//if env.Restore {
-	//	handlers.RestoreMetricStorage(env.FilePath)
-	//}
-	//err := gocron.Every(convert.GetUint(env.StoreInterval)).Second().Do(handlers.SaveMetricStorage, env.FilePath)
-	//if err != nil {
-	//	return
-	//}
-	//<-gocron.Start()
-
 }
