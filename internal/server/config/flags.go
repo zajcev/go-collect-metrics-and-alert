@@ -17,7 +17,7 @@ type Flags struct {
 
 func ParseFlags() error {
 	flag.StringVar(&flags.Address, "a", "localhost:8080", "address and port to run server")
-	flag.IntVar(&flags.StoreInterval, "i", 5, "interval between stored files")
+	flag.IntVar(&flags.StoreInterval, "i", 300, "interval between stored files")
 	flag.StringVar(&flags.FilePath, "f", "/tmp/metrics", "path to store files")
 	flag.BoolVar(&flags.Restore, "r", true, "restore files")
 	flag.Parse()

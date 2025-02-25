@@ -170,10 +170,11 @@ func RestoreMetricStorage(file string) {
 
 func SaveMetricStorage(file string) {
 	producer, err := storage.NewProducer(file)
+	m := metrics.GetAllMetrics()
 	if err != nil {
 		return
 	}
-	producer.WriteMetrics(metrics)
+	producer.WriteMetrics(m)
 }
 
 func syncWriter() {
