@@ -15,7 +15,7 @@ import (
 )
 
 var metrics = models.NewMetricsStorage()
-var env = config.GetFlags()
+var env = config.GetConfig()
 var htmlTemplate = `{{ range $key, $value := .Metrics}}
    <tr>Name: {{ $key }} Type: {{ .MType }} Value: {{if .Delta}}{{.Delta}}{{end}} {{if .Value}}{{.Value}}{{end}}</tr><br/>
 {{ end }}`

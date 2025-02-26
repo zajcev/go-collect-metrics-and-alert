@@ -15,7 +15,7 @@ type Flags struct {
 	Restore       bool   `env:"RESTORE"`
 }
 
-func ParseFlags() error {
+func NewConfig() error {
 	flag.StringVar(&flags.Address, "a", "localhost:8080", "address and port to run server")
 	flag.IntVar(&flags.StoreInterval, "i", 300, "interval between stored files")
 	flag.StringVar(&flags.FilePath, "f", "/tmp/metrics", "path to store files")
@@ -28,6 +28,6 @@ func ParseFlags() error {
 	return nil
 }
 
-func GetFlags() *Flags {
+func GetConfig() *Flags {
 	return &flags
 }

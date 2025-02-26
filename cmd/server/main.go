@@ -4,18 +4,17 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/jasonlvhit/gocron"
 	"github.com/zajcev/go-collect-metrics-and-alert/internal/convert"
-	"github.com/zajcev/go-collect-metrics-and-alert/internal/server/compress"
 	"github.com/zajcev/go-collect-metrics-and-alert/internal/server/config"
 	"github.com/zajcev/go-collect-metrics-and-alert/internal/server/handlers"
-	"github.com/zajcev/go-collect-metrics-and-alert/internal/server/logging"
+	"github.com/zajcev/go-collect-metrics-and-alert/internal/server/middleware"
 	"log"
 	"net/http"
 )
 
 func Router() chi.Router {
 	r := chi.NewRouter()
-	r.Use(compress.GzipMiddleware)
-	r.Use(logging.ZapMiddleware)
+	r.Use(middleware.GzipMiddleware)
+	r.Use(middleware.ZapMiddleware)
 	r.Post("/update/{type}/{name}/{value}", handlers.UpdateMetricHandler)
 	r.Post("/update/", handlers.UpdateMetricHandlerJSON)
 	r.Post("/value/", handlers.GetMetricHandlerJSON)
@@ -26,11 +25,11 @@ func Router() chi.Router {
 }
 
 func main() {
-	err := config.ParseFlags()
+	err := config.NewConfig()
 	if err != nil {
 		log.Printf("Error: %v\n", err)
 	}
-	env := config.GetFlags()
+	env := config.GetConfig()
 	if env.Restore {
 		handlers.RestoreMetricStorage(env.FilePath)
 	}
