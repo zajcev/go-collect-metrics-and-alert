@@ -6,8 +6,6 @@ import (
 	"testing"
 )
 
-var mtest model.Metrics
-
 func Test_monitor(t *testing.T) {
 	tests := []struct {
 		name    string
@@ -16,7 +14,7 @@ func Test_monitor(t *testing.T) {
 	}{
 		{
 			name:    "test",
-			metric:  mtest,
+			metric:  model.Metrics{},
 			wantErr: false,
 		},
 	}
@@ -27,21 +25,6 @@ func Test_monitor(t *testing.T) {
 	}
 }
 
-func Test_reporter(t *testing.T) {
-	tests := []struct {
-		name    string
-		metric  model.Metrics
-		wantErr bool
-	}{
-		{
-			name:    "test",
-			metric:  mtest,
-			wantErr: false,
-		},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			listeners.NewReporter("http://localhost:8080")
-		})
-	}
+func TestNewReporter(t *testing.T) {
+	listeners.NewReporter("http://localhost:8080/update")
 }
