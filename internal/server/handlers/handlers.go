@@ -5,7 +5,9 @@ import (
 	"encoding/json"
 	"github.com/go-chi/chi/v5"
 	"github.com/zajcev/go-collect-metrics-and-alert/internal/constants"
+	"github.com/zajcev/go-collect-metrics-and-alert/internal/server/config"
 	"github.com/zajcev/go-collect-metrics-and-alert/internal/server/models"
+	"github.com/zajcev/go-collect-metrics-and-alert/internal/server/storage"
 	"html/template"
 	"log"
 	"net/http"
@@ -13,7 +15,7 @@ import (
 )
 
 var metrics = models.NewMetricsStorage()
-
+var env = config.GetConfig()
 var htmlTemplate = `{{ range $key, $value := .Metrics}}
    <tr>Name: {{ $key }} Type: {{ .MType }} Value: {{if .Delta}}{{.Delta}}{{end}} {{if .Value}}{{.Value}}{{end}}</tr><br/>
 {{ end }}`
@@ -31,6 +33,7 @@ func UpdateMetricHandler(w http.ResponseWriter, r *http.Request) {
 			w.WriteHeader(http.StatusBadRequest)
 		} else {
 			metrics.SetGauge(mname, mtype, v)
+			syncWriter()
 		}
 	} else if mtype == constants.Counter {
 		v, err := strconv.ParseInt(mvalue, 10, 64)
@@ -38,6 +41,7 @@ func UpdateMetricHandler(w http.ResponseWriter, r *http.Request) {
 			w.WriteHeader(http.StatusBadRequest)
 		} else {
 			metrics.SetCounter(mname, mtype, v)
+			syncWriter()
 		}
 	} else {
 		w.WriteHeader(http.StatusBadRequest)
@@ -74,6 +78,7 @@ func UpdateMetricHandlerJSON(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusOK)
 		w.Write(resp)
+		syncWriter()
 	} else {
 		w.WriteHeader(http.StatusBadRequest)
 	}
@@ -149,4 +154,31 @@ func GetAllMetricsJSON(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
 	w.Write(resp)
+}
+
+func RestoreMetricStorage(file string) {
+	consumer, err := storage.NewConsumer(file)
+	if err != nil {
+		log.Printf("Error while init file consumer %v", err)
+		return
+	}
+	metrics, err = consumer.ReadMetrics()
+	if err != nil {
+		log.Printf("Error while read metric %v", err)
+	}
+}
+
+func SaveMetricStorage(file string) {
+	producer, err := storage.NewProducer(file)
+	m := metrics.GetAllMetrics()
+	if err != nil {
+		return
+	}
+	producer.WriteMetrics(m)
+}
+
+func syncWriter() {
+	if env.StoreInterval == 0 {
+		SaveMetricStorage(env.FilePath)
+	}
 }
