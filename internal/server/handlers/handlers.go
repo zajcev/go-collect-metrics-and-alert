@@ -189,7 +189,7 @@ func DatabaseHandler(w http.ResponseWriter, r *http.Request) {
 	connStr := env.DBHost
 	db, err := sql.Open("postgres", connStr)
 	if err != nil {
-		log.Printf("Error while connecting to Database", err)
+		log.Printf("Error while connecting to Database %v", err)
 	}
 	check := db.Ping()
 	if check != nil {
