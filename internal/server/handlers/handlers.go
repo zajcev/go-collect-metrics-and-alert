@@ -186,10 +186,10 @@ func syncWriter() {
 }
 
 func DatabaseHandler(w http.ResponseWriter, r *http.Request) {
-	connStr := env.DbHost
+	connStr := env.DBHost
 	db, err := sql.Open("postgres", connStr)
 	if err != nil {
-
+		log.Printf("Error while connecting to Database", err)
 	}
 	check := db.Ping()
 	if check != nil {

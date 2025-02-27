@@ -13,7 +13,7 @@ type Flags struct {
 	StoreInterval int    `env:"STORE_INTERVAL"`
 	FilePath      string `env:"FILE_STORAGE_PATH"`
 	Restore       bool   `env:"RESTORE"`
-	DbHost        string `env:"DATABASE_DSN"`
+	DBHost        string `env:"DATABASE_DSN"`
 }
 
 func NewConfig() error {
