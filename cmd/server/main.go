@@ -21,6 +21,7 @@ func Router() chi.Router {
 	r.Get("/value/{type}/{name}", handlers.GetMetricHandler)
 	r.Get("/", handlers.GetAllMetrics)
 	r.Get("/json", handlers.GetAllMetricsJSON)
+	r.Get("/ping", handlers.DatabaseHandler)
 	return r
 }
 

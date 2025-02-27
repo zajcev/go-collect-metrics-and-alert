@@ -13,6 +13,7 @@ type Flags struct {
 	StoreInterval int    `env:"STORE_INTERVAL"`
 	FilePath      string `env:"FILE_STORAGE_PATH"`
 	Restore       bool   `env:"RESTORE"`
+	DbHost        string `env:"DATABASE_DSN"`
 }
 
 func NewConfig() error {
@@ -20,6 +21,7 @@ func NewConfig() error {
 	flag.IntVar(&flags.StoreInterval, "i", 300, "interval between stored files")
 	flag.StringVar(&flags.FilePath, "f", "/tmp/metrics", "path to store files")
 	flag.BoolVar(&flags.Restore, "r", true, "restore files")
+	flag.StringVar(&flags.FilePath, "d", "postgres://root:ok@localhost:5432/test?sslmode=disable", "database host")
 	flag.Parse()
 	if err := env.Parse(&flags); err != nil {
 		log.Printf("%+v", err)

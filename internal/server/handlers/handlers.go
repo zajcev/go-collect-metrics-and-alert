@@ -2,8 +2,10 @@ package handlers
 
 import (
 	"bytes"
+	"database/sql"
 	"encoding/json"
 	"github.com/go-chi/chi/v5"
+	_ "github.com/lib/pq"
 	"github.com/zajcev/go-collect-metrics-and-alert/internal/constants"
 	"github.com/zajcev/go-collect-metrics-and-alert/internal/server/config"
 	"github.com/zajcev/go-collect-metrics-and-alert/internal/server/models"
@@ -181,4 +183,20 @@ func syncWriter() {
 	if env.StoreInterval == 0 {
 		SaveMetricStorage(env.FilePath)
 	}
+}
+
+func DatabaseHandler(w http.ResponseWriter, r *http.Request) {
+	connStr := env.DbHost
+	db, err := sql.Open("postgres", connStr)
+	if err != nil {
+
+	}
+	check := db.Ping()
+	if check != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+	} else {
+		w.WriteHeader(http.StatusOK)
+	}
+	defer db.Close()
+	w.Header().Set("Content-Type", "text/plain")
 }
