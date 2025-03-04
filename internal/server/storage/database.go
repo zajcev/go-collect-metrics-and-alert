@@ -29,14 +29,20 @@ func DBPing() error {
 func GetMetricRaw(mname string, mtype string) interface{} {
 	var value interface{}
 	if mtype == constants.Gauge {
-		row, _ := db.Query("SELECT value FROM metrics WHERE id = $1 and type = $2;", mname, mtype)
+		row, err := db.Query("SELECT value FROM metrics WHERE id = $1 and type = $2;", mname, mtype)
+		if err != nil {
+			log.Printf("Error while execute query: %v", err)
+		}
 		defer row.Close()
 		if row != nil {
 			row.Scan(&value)
 			return value
 		}
 	} else {
-		row, _ := db.Query("SELECT value FROM metrics WHERE id = $1 and type = $2;", mname, mtype)
+		row, err := db.Query("SELECT value FROM metrics WHERE id = $1 and type = $2;", mname, mtype)
+		if err != nil {
+			log.Printf("Error while execute query: %v", err)
+		}
 		defer row.Close()
 		if row != nil {
 			row.Scan(&value)
@@ -47,7 +53,10 @@ func GetMetricRaw(mname string, mtype string) interface{} {
 }
 
 func GetMetricJSON(m models.Metric) (models.Metric, int) {
-	row, _ := db.Query("SELECT value FROM metrics WHERE id = $1;", m.ID)
+	row, err := db.Query("SELECT value FROM metrics WHERE id = $1;", m.ID)
+	if err != nil {
+		log.Printf("Error while execute query: %v", err)
+	}
 	defer row.Close()
 	if row.Next() {
 		row.Scan(&m.ID, &m.MType, &m.Delta, &m.Value)
@@ -57,7 +66,10 @@ func GetMetricJSON(m models.Metric) (models.Metric, int) {
 }
 
 func SetDeltaRaw(mname string, mtype string, delta int64) {
-	row, _ := db.Query("SELECT * FROM metrics WHERE id = $1 and type = $2;", mname, mtype)
+	row, err := db.Query("SELECT * FROM metrics WHERE id = $1 and type = $2;", mname, mtype)
+	if err != nil {
+		log.Printf("Error while execute query: %v", err)
+	}
 	defer row.Close()
 	if row != nil && row.Next() {
 		_, err := db.Exec("UPDATE metrics SET delta = $1 WHERE id = $2;", delta, mname)
@@ -73,7 +85,10 @@ func SetDeltaRaw(mname string, mtype string, delta int64) {
 }
 
 func SetValueRaw(mname string, mtype string, value float64) {
-	row, _ := db.Query("SELECT * FROM metrics WHERE id = $1 and type = $2;", mname, mtype)
+	row, err := db.Query("SELECT * FROM metrics WHERE id = $1 and type = $2;", mname, mtype)
+	if err != nil {
+		log.Printf("Error while execute query: %v", err)
+	}
 	defer row.Close()
 	if row != nil && row.Next() {
 		_, err := db.Exec("UPDATE metrics SET value = $1 WHERE id = $2;", value, mname)
@@ -89,7 +104,10 @@ func SetValueRaw(mname string, mtype string, value float64) {
 }
 
 func SetDeltaJSON(m models.Metric) {
-	row, _ := db.Query("SELECT * FROM metrics WHERE id = $1 and type = $2;", m.ID, m.MType)
+	row, err := db.Query("SELECT * FROM metrics WHERE id = $1 and type = $2;", m.ID, m.MType)
+	if err != nil {
+		log.Printf("Error while execute query: %v", err)
+	}
 	if row != nil && row.Next() {
 		_, err := db.Exec("UPDATE metrics SET delta = $1 WHERE id = $2;", m.Delta, m.ID)
 		if err != nil {
@@ -105,7 +123,10 @@ func SetDeltaJSON(m models.Metric) {
 }
 
 func SetValueJSON(m models.Metric) {
-	row, _ := db.Query("SELECT * FROM metrics WHERE id = $1 and type = $2;", m.ID, m.MType)
+	row, err := db.Query("SELECT * FROM metrics WHERE id = $1 and type = $2;", m.ID, m.MType)
+	if err != nil {
+		log.Printf("Error while execute query: %v", err)
+	}
 	defer row.Close()
 	if row != nil && row.Next() {
 		_, err := db.Exec("UPDATE metrics SET delta = $1 WHERE id = $2;", m.Delta, m.ID)
