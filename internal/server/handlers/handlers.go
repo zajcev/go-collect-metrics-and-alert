@@ -2,11 +2,11 @@ package handlers
 
 import (
 	"bytes"
-	"database/sql"
 	"encoding/json"
 	"github.com/go-chi/chi/v5"
 	_ "github.com/lib/pq"
 	"github.com/zajcev/go-collect-metrics-and-alert/internal/constants"
+	"github.com/zajcev/go-collect-metrics-and-alert/internal/convert"
 	"github.com/zajcev/go-collect-metrics-and-alert/internal/server/config"
 	"github.com/zajcev/go-collect-metrics-and-alert/internal/server/models"
 	"github.com/zajcev/go-collect-metrics-and-alert/internal/server/storage"
@@ -17,7 +17,6 @@ import (
 )
 
 var metrics = models.NewMetricsStorage()
-var env = config.GetConfig()
 var htmlTemplate = `{{ range $key, $value := .Metrics}}
    <tr>Name: {{ $key }} Type: {{ .MType }} Value: {{if .Delta}}{{.Delta}}{{end}} {{if .Value}}{{.Value}}{{end}}</tr><br/>
 {{ end }}`
@@ -34,16 +33,24 @@ func UpdateMetricHandler(w http.ResponseWriter, r *http.Request) {
 		if err != nil {
 			w.WriteHeader(http.StatusBadRequest)
 		} else {
-			metrics.SetGauge(mname, mtype, v)
-			syncWriter()
+			if *config.GetDBHost() != "" {
+				storage.SetValueRaw(mname, mtype, v)
+			} else {
+				metrics.SetGauge(mname, mtype, v)
+				syncWriter()
+			}
 		}
 	} else if mtype == constants.Counter {
 		v, err := strconv.ParseInt(mvalue, 10, 64)
 		if err != nil {
 			w.WriteHeader(http.StatusBadRequest)
 		} else {
-			metrics.SetCounter(mname, mtype, v)
-			syncWriter()
+			if *config.GetDBHost() != "" {
+				storage.SetDeltaRaw(mname, mtype, v)
+			} else {
+				metrics.SetCounter(mname, mtype, v)
+				syncWriter()
+			}
 		}
 	} else {
 		w.WriteHeader(http.StatusBadRequest)
@@ -65,12 +72,19 @@ func UpdateMetricHandlerJSON(w http.ResponseWriter, r *http.Request) {
 		if err = json.Unmarshal(buf.Bytes(), &m); err != nil {
 			http.Error(w, err.Error(), http.StatusBadRequest)
 			return
+		} else if *config.GetDBHost() != "" {
+			if m.MType == constants.Gauge {
+				storage.SetValueJSON(m)
+			} else if m.MType == constants.Counter {
+				storage.SetDeltaJSON(m)
+			}
 		} else {
 			if m.MType == constants.Gauge {
 				metrics.SetGaugeJSON(m)
 			} else if m.MType == constants.Counter {
 				metrics.SetCounterJSON(m)
 			}
+			syncWriter()
 		}
 		resp, err := json.Marshal(&m)
 		if err != nil {
@@ -80,7 +94,6 @@ func UpdateMetricHandlerJSON(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusOK)
 		w.Write(resp)
-		syncWriter()
 	} else {
 		w.WriteHeader(http.StatusBadRequest)
 	}
@@ -89,11 +102,16 @@ func UpdateMetricHandlerJSON(w http.ResponseWriter, r *http.Request) {
 func GetMetricHandler(w http.ResponseWriter, r *http.Request) {
 	mname := chi.URLParam(r, "name")
 	mtype := chi.URLParam(r, "type")
-	g := metrics.GetMetric(mname, mtype)
-	if g != "" {
+	var value string
+	if *config.GetDBHost() != "" {
+		value = convert.GetString(storage.GetMetricRaw(mname, mtype))
+	} else {
+		value = metrics.GetMetric(mname, mtype)
+	}
+	if value != "" {
 		w.WriteHeader(http.StatusOK)
 		w.Header().Set("Content-Type", "application/text")
-		res, err := w.Write([]byte(g))
+		res, err := w.Write([]byte(value))
 		if err != nil {
 			log.Fatalf("Response: %v \n Error while writing response: %v", res, err)
 		}
@@ -109,6 +127,7 @@ func GetMetricHandler(w http.ResponseWriter, r *http.Request) {
 func GetMetricHandlerJSON(w http.ResponseWriter, r *http.Request) {
 	var m models.Metric
 	var buf bytes.Buffer
+	var code int
 	_, err := buf.ReadFrom(r.Body)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
@@ -118,8 +137,12 @@ func GetMetricHandlerJSON(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
-	value, code := metrics.GetMetricJSON(m)
-	resp, err := json.Marshal(value)
+	if *config.GetDBHost() != "" {
+		m, code = storage.GetMetricJSON(m)
+	} else {
+		m, code = metrics.GetMetricJSON(m)
+	}
+	resp, err := json.Marshal(m)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -180,23 +203,16 @@ func SaveMetricStorage(file string) {
 }
 
 func syncWriter() {
-	if env.StoreInterval == 0 {
-		SaveMetricStorage(env.FilePath)
+	if *config.GetStoreInterval() == 0 && *config.GetDBHost() == "" {
+		SaveMetricStorage(*config.GetFilePath())
 	}
 }
 
 func DatabaseHandler(w http.ResponseWriter, r *http.Request) {
-	connStr := env.DBHost
-	db, err := sql.Open("postgres", connStr)
+	err := storage.DBPing()
 	if err != nil {
-		log.Printf("Error while connecting to Database %v", err)
-	}
-	check := db.Ping()
-	if check != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 	} else {
 		w.WriteHeader(http.StatusOK)
 	}
-	defer db.Close()
-	w.Header().Set("Content-Type", "text/plain")
 }

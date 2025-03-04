@@ -7,6 +7,7 @@ import (
 	"github.com/zajcev/go-collect-metrics-and-alert/internal/server/config"
 	"github.com/zajcev/go-collect-metrics-and-alert/internal/server/handlers"
 	"github.com/zajcev/go-collect-metrics-and-alert/internal/server/middleware"
+	"github.com/zajcev/go-collect-metrics-and-alert/internal/server/storage"
 	"log"
 	"net/http"
 )
@@ -30,15 +31,17 @@ func main() {
 	if err != nil {
 		log.Printf("Error: %v\n", err)
 	}
-	env := config.GetConfig()
-	if env.Restore {
-		handlers.RestoreMetricStorage(env.FilePath)
-	}
-	if env.StoreInterval > 0 {
-		go startScheduler(convert.GetUint(env.StoreInterval), env.FilePath)
+	storage.Init(*config.GetDBHost())
+	if *config.GetDBHost() == "" {
+		if *config.GetRestore() {
+			handlers.RestoreMetricStorage(*config.GetFilePath())
+		}
+		if *config.GetStoreInterval() > 0 {
+			go startScheduler(convert.GetUint(*config.GetStoreInterval()), *config.GetFilePath())
+		}
 	}
 
-	log.Fatal(http.ListenAndServe(env.Address, Router()))
+	log.Fatal(http.ListenAndServe(*config.GetAddress(), Router()))
 }
 
 func startScheduler(interval uint64, filePath string) {

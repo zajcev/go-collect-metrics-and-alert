@@ -18,10 +18,10 @@ type Flags struct {
 
 func NewConfig() error {
 	flag.StringVar(&flags.Address, "a", "localhost:8080", "address and port to run server")
-	flag.IntVar(&flags.StoreInterval, "i", 300, "interval between stored files")
+	flag.IntVar(&flags.StoreInterval, "i", 0, "interval between stored files")
 	flag.StringVar(&flags.FilePath, "f", "/tmp/metrics", "path to store files")
 	flag.BoolVar(&flags.Restore, "r", true, "restore files")
-	flag.StringVar(&flags.FilePath, "d", "postgres://root:ok@localhost:5432/test?sslmode=disable", "database host")
+	flag.StringVar(&flags.DBHost, "d", "postgres://user:password@localhost:5432/metrics?sslmode=disable", "database host")
 	flag.Parse()
 	if err := env.Parse(&flags); err != nil {
 		log.Printf("%+v", err)
@@ -30,6 +30,21 @@ func NewConfig() error {
 	return nil
 }
 
-func GetConfig() *Flags {
-	return &flags
+func GetAddress() *string {
+	return &flags.Address
+}
+
+func GetStoreInterval() *int {
+	return &flags.StoreInterval
+}
+func GetFilePath() *string {
+	return &flags.FilePath
+}
+
+func GetRestore() *bool {
+	return &flags.Restore
+}
+
+func GetDBHost() *string {
+	return &flags.DBHost
 }
