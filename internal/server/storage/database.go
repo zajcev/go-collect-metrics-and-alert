@@ -18,6 +18,10 @@ func Init(DBUrl string) {
 	db = d
 }
 
+func Migration() {
+	db.Exec("CREATE TABLE IF NOT EXISTS metrics (id varchar NOT NULL,mtype varchar NOT NULL,delta bigint NULL,value double precision NULL,CONSTRAINT metrics_pk PRIMARY KEY (id),CONSTRAINT metrics_unique UNIQUE (name));")
+}
+
 func DBPing() error {
 	return db.Ping()
 }

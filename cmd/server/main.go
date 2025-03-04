@@ -31,7 +31,6 @@ func main() {
 	if err != nil {
 		log.Printf("Error: %v\n", err)
 	}
-	storage.Init(*config.GetDBHost())
 	if *config.GetDBHost() == "" {
 		if *config.GetRestore() {
 			handlers.RestoreMetricStorage(*config.GetFilePath())
@@ -39,6 +38,9 @@ func main() {
 		if *config.GetStoreInterval() > 0 {
 			go startScheduler(convert.GetUint(*config.GetStoreInterval()), *config.GetFilePath())
 		}
+	} else {
+		storage.Init(*config.GetDBHost())
+		storage.Migration()
 	}
 
 	log.Fatal(http.ListenAndServe(*config.GetAddress(), Router()))
