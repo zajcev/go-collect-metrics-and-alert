@@ -147,10 +147,9 @@ func SetValueJSON(m models.Metric) {
 // tech dept
 func GetAllMetrics() (*models.MemStorage, error) {
 	metric := models.MemStorage{}
-	rows, err := db.Query("SELECT * FROM metrics;")
-	if err != nil {
-		log.Printf("%v", err)
-		return nil, err
+	rows, _ := db.Query("SELECT * FROM metrics;")
+	if rows.Err() != nil {
+		log.Printf("Error while execute query: %v", rows.Err())
 	}
 	defer rows.Close()
 	rows.Scan(metric)
