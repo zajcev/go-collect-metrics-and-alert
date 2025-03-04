@@ -19,7 +19,7 @@ func Init(DBUrl string) {
 }
 
 func Migration() {
-	db.Exec("CREATE TABLE IF NOT EXISTS metrics (id varchar NOT NULL,mtype varchar NOT NULL,delta bigint NULL,value double precision NULL,CONSTRAINT metrics_pk PRIMARY KEY (id),CONSTRAINT metrics_unique UNIQUE (name));")
+	db.Exec("CREATE TABLE IF NOT EXISTS metrics (id varchar NOT NULL, type varchar NOT NULL,delta bigint NULL,value double precision NULL, CONSTRAINT metrics_unique UNIQUE (id));")
 }
 
 func DBPing() error {
@@ -59,7 +59,7 @@ func GetMetricJSON(m models.Metric) (models.Metric, int) {
 func SetDeltaRaw(mname string, mtype string, delta int64) {
 	row, _ := db.Query("SELECT * FROM metrics WHERE id = $1 and type = $2;", mname, mtype)
 	defer row.Close()
-	if row.Next() {
+	if row != nil && row.Next() {
 		_, err := db.Exec("UPDATE metrics SET delta = $1 WHERE id = $2;", delta, mname)
 		if err != nil {
 			log.Printf("%v", err)
@@ -75,7 +75,7 @@ func SetDeltaRaw(mname string, mtype string, delta int64) {
 func SetValueRaw(mname string, mtype string, value float64) {
 	row, _ := db.Query("SELECT * FROM metrics WHERE id = $1 and type = $2;", mname, mtype)
 	defer row.Close()
-	if row.Next() {
+	if row != nil && row.Next() {
 		_, err := db.Exec("UPDATE metrics SET value = $1 WHERE id = $2;", value, mname)
 		if err != nil {
 			log.Printf("%v", err)
@@ -90,7 +90,7 @@ func SetValueRaw(mname string, mtype string, value float64) {
 
 func SetDeltaJSON(m models.Metric) {
 	row, _ := db.Query("SELECT * FROM metrics WHERE id = $1 and type = $2;", m.ID, m.MType)
-	if row.Next() {
+	if row != nil && row.Next() {
 		_, err := db.Exec("UPDATE metrics SET delta = $1 WHERE id = $2;", m.Delta, m.ID)
 		if err != nil {
 			log.Printf("%v", err)
@@ -107,7 +107,7 @@ func SetDeltaJSON(m models.Metric) {
 func SetValueJSON(m models.Metric) {
 	row, _ := db.Query("SELECT * FROM metrics WHERE id = $1 and type = $2;", m.ID, m.MType)
 	defer row.Close()
-	if row.Next() {
+	if row != nil && row.Next() {
 		_, err := db.Exec("UPDATE metrics SET delta = $1 WHERE id = $2;", m.Delta, m.ID)
 		if err != nil {
 			log.Printf("%v", err)
