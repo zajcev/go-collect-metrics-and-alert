@@ -29,9 +29,9 @@ func DBPing() error {
 func GetMetricRaw(mname string, mtype string) interface{} {
 	var value interface{}
 	if mtype == constants.Gauge {
-		row, err := db.Query("SELECT value FROM metrics WHERE id = $1 and type = $2;", mname, mtype)
-		if err != nil {
-			log.Printf("Error while execute query: %v", err)
+		row, _ := db.Query("SELECT value FROM metrics WHERE id = $1 and type = $2;", mname, mtype)
+		if row.Err() != nil {
+			log.Printf("Error while execute query: %v", row.Err())
 			return nil
 		}
 		defer row.Close()
