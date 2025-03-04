@@ -32,6 +32,7 @@ func GetMetricRaw(mname string, mtype string) interface{} {
 		row, err := db.Query("SELECT value FROM metrics WHERE id = $1 and type = $2;", mname, mtype)
 		if err != nil {
 			log.Printf("Error while execute query: %v", err)
+			return nil
 		}
 		defer row.Close()
 		if row != nil {
@@ -142,6 +143,7 @@ func SetValueJSON(m models.Metric) {
 	}
 }
 
+// tech dept
 func GetAllMetrics() (*models.MemStorage, error) {
 	metric := models.MemStorage{}
 	rows, err := db.Query("SELECT * FROM metrics;")
