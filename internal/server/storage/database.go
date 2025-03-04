@@ -90,7 +90,6 @@ func SetValueRaw(mname string, mtype string, value float64) {
 
 func SetDeltaJSON(m models.Metric) {
 	row, _ := db.Query("SELECT * FROM metrics WHERE id = $1 and type = $2;", m.ID, m.MType)
-	defer row.Close()
 	if row.Next() {
 		_, err := db.Exec("UPDATE metrics SET delta = $1 WHERE id = $2;", m.Delta, m.ID)
 		if err != nil {
@@ -102,6 +101,7 @@ func SetDeltaJSON(m models.Metric) {
 			log.Printf("Error while insert metric with counter type: %v", err)
 		}
 	}
+	defer row.Close()
 }
 
 func SetValueJSON(m models.Metric) {
