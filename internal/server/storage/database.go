@@ -55,7 +55,7 @@ func GetMetricRaw(mname string, mtype string) interface{} {
 }
 
 func GetMetricJSON(m models.Metric) (models.Metric, int) {
-	row, _ := db.Query("SELECT value FROM metrics WHERE id = $1;", m.ID)
+	row, _ := db.Query("SELECT * FROM metrics WHERE id = $1;", m.ID)
 	if row.Err() != nil {
 		log.Printf("Error while execute query: %v", row.Err())
 	}
