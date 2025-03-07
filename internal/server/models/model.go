@@ -98,7 +98,7 @@ func (ms *MemStorage) GetAllMetrics() *MemStorage {
 func (ms *MemStorage) SetMetricList(list []Metric) {
 	for _, v := range list {
 		if v.MType == constants.Gauge {
-			ms.SetCounterJSON(v)
+			ms.SetGaugeJSON(v)
 		} else if v.MType == constants.Counter {
 			ms.SetCounterJSON(v)
 		}

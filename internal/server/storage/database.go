@@ -144,7 +144,7 @@ func SetValueJSON(m models.Metric) {
 	}
 }
 
-func SetListJson(list []models.Metric) {
+func SetListJSON(list []models.Metric) {
 	tx, err := db.Begin()
 	if err != nil {
 		return

@@ -74,7 +74,7 @@ func UpdateListMetricsJSON(w http.ResponseWriter, r *http.Request) {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		} else if *config.GetDBHost() != "" {
-			storage.SetListJson(list)
+			storage.SetListJSON(list)
 		} else {
 			metrics.SetMetricList(list)
 			syncWriter()
