@@ -18,6 +18,7 @@ func Router() chi.Router {
 	r.Use(middleware.ZapMiddleware)
 	r.Post("/update/{type}/{name}/{value}", handlers.UpdateMetricHandler)
 	r.Post("/update/", handlers.UpdateMetricHandlerJSON)
+	r.Post("/updates/", handlers.UpdateListMetricsJSON)
 	r.Post("/value/", handlers.GetMetricHandlerJSON)
 	r.Get("/value/{type}/{name}", handlers.GetMetricHandler)
 	r.Get("/", handlers.GetAllMetrics)

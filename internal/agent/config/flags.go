@@ -22,7 +22,7 @@ func NewParseFlags() (map[string]any, error) {
 	var flagPollInterval int
 	flag.StringVar(&flagAddress, "a", "localhost:8080", "address and port to run server")
 	flag.IntVar(&flagReportInterval, "r", 2, "interval between report calls")
-	flag.IntVar(&flagPollInterval, "p", 2, "interval between polls")
+	flag.IntVar(&flagPollInterval, "p", 1, "interval between polls")
 	flag.Parse()
 
 	params := map[string]struct {

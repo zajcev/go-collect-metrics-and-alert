@@ -144,6 +144,22 @@ func SetValueJSON(m models.Metric) {
 	}
 }
 
+func SetListJson(list []models.Metric) {
+	tx, err := db.Begin()
+	if err != nil {
+		return
+	}
+	for _, v := range list {
+		_, err := tx.Exec("INSERT INTO metrics (id, type, value, delta) VALUES ($1, $2, $3, $4);", v.ID, v.MType, v.Value, v.Delta)
+		if err != nil {
+			// если ошибка, то откатываем изменения
+			tx.Rollback()
+			return
+		}
+	}
+	tx.Commit()
+}
+
 // tech dept
 func GetAllMetrics() (*models.MemStorage, error) {
 	metric := models.MemStorage{}

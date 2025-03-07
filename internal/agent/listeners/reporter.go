@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"compress/gzip"
 	"encoding/json"
-	"fmt"
 	"github.com/zajcev/go-collect-metrics-and-alert/internal/agent/model"
 	"github.com/zajcev/go-collect-metrics-and-alert/internal/constants"
 	"github.com/zajcev/go-collect-metrics-and-alert/internal/convert"
@@ -19,69 +18,72 @@ var MemStorage model.Metrics
 
 func NewReporter(u string) {
 	mt := reflect.TypeOf(MemStorage)
+	mj := []model.MetricJSON{}
 	for i := 0; i < mt.NumField(); i++ {
-		mj := model.MetricJSON{}
 		f := mt.Field(i)
-		mj.ID = f.Name
+		metric := model.MetricJSON{}
+		metric.ID = f.Name
 		var t string
-		fu, err := url.Parse(u)
-		if err != nil {
-			log.Fatal(err)
-		}
 		v := model.GetValueByName(MemStorage, f.Name)
 		if reflect.TypeOf(v).String() == "float64" {
 			t = constants.Gauge
 			result := convert.GetFloat(v)
-			mj.Value = &result
+			metric.Value = &result
 		} else if reflect.TypeOf(v).String() == "int64" {
 			t = constants.Counter
 			result := convert.GetInt64(v)
-			mj.Delta = &result
+			metric.Delta = &result
 		}
-		mj.MType = t
-		req, err := json.Marshal(mj)
-		if err != nil {
-			log.Fatalf("Error marshalling json: %v", err)
-		}
+		metric.MType = t
+		mj = append(mj, metric)
+	}
+	send(u, &mj)
+}
 
-		var buf bytes.Buffer
-		g := gzip.NewWriter(&buf)
-		if _, err = g.Write(req); err != nil {
-			log.Fatalf("Error compressing json: %v", err)
-			return
-		}
-		if err = g.Close(); err != nil {
-			log.Fatalf("Error compressing json: %v", err)
-			return
-		}
+func send(u string, list *[]model.MetricJSON) {
+	req, err := json.Marshal(list)
+	if err != nil {
+		log.Fatalf("Error marshalling json: %v", err)
+	}
+	fu, err := url.Parse(u)
+	if err != nil {
+		log.Fatal(err)
+	}
+	var buf bytes.Buffer
+	g := gzip.NewWriter(&buf)
+	if _, err = g.Write(req); err != nil {
+		log.Fatalf("Error compressing json: %v", err)
+		return
+	}
+	if err = g.Close(); err != nil {
+		log.Fatalf("Error compressing json: %v", err)
+		return
+	}
 
-		client := &http.Client{}
-		request, err := http.NewRequest("POST", fu.String(), &buf)
-		if err != nil {
-			log.Fatalf("Error creating request: %v", err)
-		}
-		request.Header.Add("Content-Encoding", "gzip")
-		request.Header.Add("Accept-Encoding", "gzip")
-		request.Header.Add("Content-Type", "application/json")
+	client := &http.Client{}
+	request, err := http.NewRequest("POST", fu.String(), &buf)
+	if err != nil {
+		log.Fatalf("Error creating request: %v", err)
+	}
+	request.Header.Add("Content-Encoding", "gzip")
+	request.Header.Add("Accept-Encoding", "gzip")
+	request.Header.Add("Content-Type", "application/json")
 
-		resp, err := client.Do(request)
-		if err != nil {
-			log.Printf("Error making request: %v", err)
-			return
-		}
-		defer resp.Body.Close()
+	resp, err := client.Do(request)
+	if err != nil {
+		log.Printf("Error making request: %v", err)
+		return
+	}
+	defer resp.Body.Close()
 
-		gzReader, err := gzip.NewReader(resp.Body)
-		if err != nil {
-			log.Fatalf("Error creating gzip reader: %v", err)
-		}
-		defer gzReader.Close()
+	gzReader, err := gzip.NewReader(resp.Body)
+	if err != nil {
+		log.Fatalf("Error creating gzip reader: %v", err)
+	}
+	defer gzReader.Close()
 
-		body, err := io.ReadAll(gzReader)
-		if err != nil {
-			log.Fatalf("Error reading response body: %v", err)
-		}
-
-		fmt.Printf("Response body: %s\n", body)
+	io.ReadAll(gzReader)
+	if err != nil {
+		log.Fatalf("Error reading response body: %v", err)
 	}
 }

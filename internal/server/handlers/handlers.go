@@ -60,6 +60,37 @@ func UpdateMetricHandler(w http.ResponseWriter, r *http.Request) {
 		log.Fatalf("Error while close body: %v", err)
 	}
 }
+
+func UpdateListMetricsJSON(w http.ResponseWriter, r *http.Request) {
+	if r.Header.Get("Content-Type") == "application/json" {
+		var list []models.Metric
+		var buf bytes.Buffer
+		_, err := buf.ReadFrom(r.Body)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+		if err = json.Unmarshal(buf.Bytes(), &list); err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		} else if *config.GetDBHost() != "" {
+			storage.SetListJson(list)
+		} else {
+			metrics.SetMetricList(list)
+			syncWriter()
+		}
+		resp, err := json.Marshal(&list)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusOK)
+		w.Write(resp)
+	} else {
+		w.WriteHeader(http.StatusBadRequest)
+	}
+}
 func UpdateMetricHandlerJSON(w http.ResponseWriter, r *http.Request) {
 	if r.Header.Get("Content-Type") == "application/json" {
 		var m models.Metric
