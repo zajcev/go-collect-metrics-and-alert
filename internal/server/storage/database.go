@@ -106,11 +106,14 @@ func SetValueRaw(mname string, mtype string, value float64) {
 }
 
 func SetDeltaJSON(m models.Metric) {
-	row, _ := db.Query("SELECT * FROM metrics WHERE id = $1 and type = $2;", m.ID, m.MType)
+	row, _ := db.Query("SELECT delta FROM metrics WHERE id = $1 and type = $2;", m.ID, m.MType)
 	if row.Err() != nil {
 		log.Printf("Error while execute query: %v", row.Err())
 	}
 	if row != nil && row.Next() {
+		res := models.Metric{}
+		row.Scan(&res.Delta)
+		*m.Delta += *res.Delta
 		_, err := db.Exec("UPDATE metrics SET delta = $1 WHERE id = $2;", m.Delta, m.ID)
 		if err != nil {
 			log.Printf("%v", err)
@@ -131,7 +134,7 @@ func SetValueJSON(m models.Metric) {
 	}
 	defer row.Close()
 	if row != nil && row.Next() {
-		_, err := db.Exec("UPDATE metrics SET delta = $1 WHERE id = $2;", m.Delta, m.ID)
+		_, err := db.Exec("UPDATE metrics SET value = $1 WHERE id = $2;", m.Value, m.ID)
 		if err != nil {
 			log.Printf("%v", err)
 		}
@@ -145,19 +148,15 @@ func SetValueJSON(m models.Metric) {
 }
 
 func SetListJSON(list []models.Metric) {
-	tx, err := db.Begin()
-	if err != nil {
-		return
-	}
 	for _, v := range list {
-		_, err := tx.Exec("INSERT INTO metrics (id, type, value, delta) VALUES ($1, $2, $3, $4);", v.ID, v.MType, v.Value, v.Delta)
-		if err != nil {
-			// если ошибка, то откатываем изменения
-			tx.Rollback()
+		if v.MType == constants.Counter {
+			SetDeltaJSON(v)
+		} else if v.MType == constants.Gauge {
+			SetValueJSON(v)
+		} else {
 			return
 		}
 	}
-	tx.Commit()
 }
 
 // tech dept
