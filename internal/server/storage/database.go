@@ -128,7 +128,7 @@ func SetDeltaJSON(m models.Metric) {
 }
 
 func SetValueJSON(m models.Metric) {
-	row, _ := db.Query("SELECT * FROM metrics WHERE id = $1 and type = $2;", m.ID, m.MType)
+	row, _ := db.Query("SELECT value FROM metrics WHERE id = $1 and type = $2;", m.ID, m.MType)
 	if row.Err() != nil {
 		log.Printf("Error while execute query: %v", row.Err())
 	}
@@ -162,6 +162,10 @@ func GetAllMetrics(ms *models.MemStorage) {
 	list := []models.Metric{}
 	row := models.Metric{}
 	rows, _ := db.Query("SELECT * FROM metrics;")
+	if rows.Err() != nil {
+		log.Printf("Error while execute query: %v", rows.Err())
+		return
+	}
 	for i := 0; rows.Next(); i++ {
 		rows.Scan(&row.ID, &row.MType, &row.Delta, &row.Value)
 		list = append(list, row)
