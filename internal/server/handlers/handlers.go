@@ -184,6 +184,9 @@ func GetMetricHandlerJSON(w http.ResponseWriter, r *http.Request) {
 }
 
 func GetAllMetrics(w http.ResponseWriter, r *http.Request) {
+	if *config.GetDBHost() != "" {
+		storage.GetAllMetrics(metrics)
+	}
 	t := template.New("t")
 	t, err := t.Parse(htmlTemplate)
 	if err != nil {
@@ -198,7 +201,6 @@ func GetAllMetrics(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		return
 	}
-
 }
 
 func GetAllMetricsJSON(w http.ResponseWriter, r *http.Request) {

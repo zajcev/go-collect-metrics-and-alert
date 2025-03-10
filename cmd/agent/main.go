@@ -16,7 +16,28 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
-	gocron.Every(pi).Second().Do(listeners.NewMonitor)
-	gocron.Every(ri).Second().Do(listeners.NewReporter, "http://"+a+"/updates/")
-	<-gocron.Start()
+
+	scheduler := gocron.NewScheduler()
+	monitorDone := make(chan bool, 1)
+	reporterDone := make(chan bool, 1)
+	err = scheduler.Every(pi).Second().Do(func() {
+		<-monitorDone
+		listeners.NewMonitor()
+		monitorDone <- true
+	})
+	if err != nil {
+		log.Fatal(err)
+	}
+	err = scheduler.Every(ri).Second().Do(func(url string) {
+		<-reporterDone
+		listeners.NewReporter(url)
+		reporterDone <- true
+	}, "http://"+a+"/updates/")
+	if err != nil {
+		log.Fatal(err)
+	}
+	monitorDone <- true
+	reporterDone <- true
+	sc := scheduler.Start()
+	<-sc
 }

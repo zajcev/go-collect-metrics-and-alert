@@ -12,6 +12,7 @@ import (
 	"net/http"
 	"net/url"
 	"reflect"
+	"time"
 )
 
 var MemStorage model.Metrics
@@ -69,9 +70,9 @@ func send(u string, list *[]model.MetricJSON) {
 	request.Header.Add("Accept-Encoding", "gzip")
 	request.Header.Add("Content-Type", "application/json")
 
-	resp, err := client.Do(request)
-	if err != nil {
-		log.Printf("Error making request: %v", err)
+	resp, errs := retry(client, request, 3)
+	if errs != nil {
+		log.Printf("Error making request: %v", errs)
 		return
 	}
 	defer resp.Body.Close()
@@ -86,4 +87,20 @@ func send(u string, list *[]model.MetricJSON) {
 	if err != nil {
 		log.Fatalf("Error reading response body: %v", err)
 	}
+}
+
+func retry(client *http.Client, req *http.Request, count int) (*http.Response, error) {
+	delay := 1
+	var res error
+	for i := 0; i < count; i++ {
+		resp, err := client.Do(req)
+		res = err
+		if err == nil {
+			return resp, nil
+		}
+		time.Sleep(time.Duration(delay) * time.Second)
+		log.Printf("Retry after %v seconds", delay)
+		delay += 2
+	}
+	return nil, res
 }

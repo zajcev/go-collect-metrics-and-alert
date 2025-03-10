@@ -139,8 +139,7 @@ func SetValueJSON(m models.Metric) {
 			log.Printf("%v", err)
 		}
 	} else {
-		result, err := db.Exec("INSERT INTO metrics (id, type, value) VALUES ($1, $2, $3);", m.ID, m.MType, m.Value)
-		log.Print(result)
+		_, err := db.Exec("INSERT INTO metrics (id, type, value) VALUES ($1, $2, $3);", m.ID, m.MType, m.Value)
 		if err != nil {
 			log.Printf("Error while insert metric with gauge type %v", err)
 		}
@@ -159,14 +158,13 @@ func SetListJSON(list []models.Metric) {
 	}
 }
 
-// tech dept
-func GetAllMetrics() (*models.MemStorage, error) {
-	metric := models.MemStorage{}
+func GetAllMetrics(ms *models.MemStorage) {
+	list := []models.Metric{}
+	row := models.Metric{}
 	rows, _ := db.Query("SELECT * FROM metrics;")
-	if rows.Err() != nil {
-		log.Printf("Error while execute query: %v", rows.Err())
+	for i := 0; rows.Next(); i++ {
+		rows.Scan(&row.ID, &row.MType, &row.Delta, &row.Value)
+		list = append(list, row)
 	}
-	defer rows.Close()
-	rows.Scan(metric)
-	return &metric, nil
+	ms.SetMetricList(list)
 }
