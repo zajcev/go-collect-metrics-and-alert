@@ -103,7 +103,7 @@ func SetDeltaRaw(mname string, mtype string, delta int64) {
 		if err != nil {
 			var pgErr *pgconn.PgError
 			if errors.As(err, &pgErr) && pgErr.Code == "23505" {
-				log.Printf("PGError: %v")
+				log.Printf("PGError: %v", pgErr)
 			} else {
 				log.Printf("Error: %v", err)
 			}
@@ -127,7 +127,7 @@ func SetValueRaw(mname string, mtype string, value float64) {
 		if err != nil {
 			var pgErr *pgconn.PgError
 			if errors.As(err, &pgErr) && pgErr.Code == "23505" {
-				log.Printf("PGError: %v|")
+				log.Printf("PGError: %v", pgErr)
 			} else {
 				log.Printf("Error: %v", err)
 			}
@@ -153,7 +153,7 @@ func SetDeltaJSON(m models.Metric) {
 		if err != nil {
 			var pgErr *pgconn.PgError
 			if errors.As(err, &pgErr) && pgErr.Code == "23505" {
-				log.Printf("PGError: %v|")
+				log.Printf("PGError: %v", pgErr)
 			} else {
 				log.Fatalf("Migration failed: %v", err)
 			}
@@ -178,7 +178,7 @@ func SetValueJSON(m models.Metric) {
 		if err != nil {
 			var pgErr *pgconn.PgError
 			if errors.As(err, &pgErr) && pgErr.Code == "23505" {
-				log.Printf("PGError: %v|")
+				log.Printf("PGError: %v", pgErr)
 			} else {
 				log.Fatalf("Migration failed: %v", err)
 			}
