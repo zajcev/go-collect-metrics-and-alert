@@ -1,17 +1,21 @@
 package storage
 
 import (
-	"database/sql"
+	"context"
+	"errors"
+	"github.com/jackc/pgx/v5/pgconn"
+	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/zajcev/go-collect-metrics-and-alert/internal/constants"
 	"github.com/zajcev/go-collect-metrics-and-alert/internal/server/models"
 	"log"
 	"net/http"
+	"time"
 )
 
-var db *sql.DB
+var db *pgxpool.Pool
 
 func Init(DBUrl string) {
-	d, err := sql.Open("postgres", DBUrl)
+	d, err := pgxpool.New(context.Background(), DBUrl)
 	if err != nil {
 		log.Printf("Error while connect to database: %v", err)
 	}
@@ -19,34 +23,53 @@ func Init(DBUrl string) {
 }
 
 func Migration() {
-	db.Exec("CREATE TABLE IF NOT EXISTS metrics (id varchar NOT NULL, type varchar NOT NULL,delta bigint NULL,value double precision NULL, CONSTRAINT metrics_unique UNIQUE (id));")
+	for i := 0; i <= 3; i++ {
+		delay := 1
+		if i == 3 {
+			log.Fatal("Migration failed, stopping after 3 attempts")
+		}
+		_, err := db.Exec(context.Background(), "CREATE TABLE IF NOT EXISTS metrics (id varchar NOT NULL, type varchar NOT NULL,delta bigint NULL,value double precision NULL);")
+		if err != nil {
+			var pgErr *pgconn.PgError
+			if errors.As(err, &pgErr) && pgErr.Code == "08000" {
+				log.Printf("Error: %v| Migration failed, retrying (%d/%d)", err, i+1, 3)
+				time.Sleep(time.Duration(delay) * time.Second)
+				delay += 2
+			} else {
+				log.Fatalf("Migration failed: %v", err)
+			}
+		} else {
+			return
+		}
+	}
 }
 
 func DBPing() error {
-	return db.Ping()
+	return db.Ping(context.Background())
 }
 
 func GetMetricRaw(mname string, mtype string) interface{} {
 	var value interface{}
 	if mtype == constants.Gauge {
-		row, _ := db.Query("SELECT value FROM metrics WHERE id = $1 and type = $2;", mname, mtype)
+		row, _ := db.Query(context.Background(), "SELECT value FROM metrics WHERE id = $1 and type = $2;", mname, mtype)
 		if row.Err() != nil {
 			log.Printf("Error while execute query: %v", row.Err())
 			return nil
 		}
 		defer row.Close()
-		if row != nil {
-			row.Scan(&value)
-			return value
+		err := row.Scan(&value)
+		if err != nil {
+			return nil
 		}
+		return value
 	} else {
-		row, _ := db.Query("SELECT value FROM metrics WHERE id = $1 and type = $2;", mname, mtype)
+		row, _ := db.Query(context.Background(), "SELECT value FROM metrics WHERE id = $1 and type = $2;", mname, mtype)
 		if row.Err() != nil {
 			log.Printf("Error while execute query: %v", row.Err())
 			return nil
 		}
 		defer row.Close()
-		if row != nil {
+		if row.Next() {
 			row.Scan(&value)
 			return value
 		}
@@ -55,7 +78,7 @@ func GetMetricRaw(mname string, mtype string) interface{} {
 }
 
 func GetMetricJSON(m models.Metric) (models.Metric, int) {
-	row, _ := db.Query("SELECT * FROM metrics WHERE id = $1;", m.ID)
+	row, _ := db.Query(context.Background(), "SELECT * FROM metrics WHERE id = $1;", m.ID)
 	if row.Err() != nil {
 		log.Printf("Error while execute query: %v", row.Err())
 	}
@@ -68,45 +91,52 @@ func GetMetricJSON(m models.Metric) (models.Metric, int) {
 }
 
 func SetDeltaRaw(mname string, mtype string, delta int64) {
-	row, _ := db.Query("SELECT * FROM metrics WHERE id = $1 and type = $2;", mname, mtype)
-	if row.Err() != nil {
-		log.Printf("Error while execute query: %v", row.Err())
-	}
+	row, _ := db.Query(context.Background(), "SELECT * FROM metrics WHERE id = $1 and type = $2;", mname, mtype)
 	defer row.Close()
 	if row != nil && row.Next() {
-		_, err := db.Exec("UPDATE metrics SET delta = $1 WHERE id = $2;", delta, mname)
+		_, err := db.Exec(context.Background(), "UPDATE metrics SET delta = $1 WHERE id = $2;", delta, mname)
 		if err != nil {
 			log.Printf("%v", err)
 		}
 	} else {
-		_, err := db.Exec("INSERT INTO metrics (id, type, delta) VALUES ($1, $2, $3);", mname, mtype, delta)
+		_, err := db.Exec(context.Background(), "INSERT INTO metrics (id, type, delta) VALUES ($1, $2, $3);", mname, mtype, delta)
 		if err != nil {
-			log.Printf("%v", err)
+			var pgErr *pgconn.PgError
+			if errors.As(err, &pgErr) && pgErr.Code == "23505" {
+				log.Printf("PGError: %v")
+			} else {
+				log.Printf("Error: %v", err)
+			}
 		}
 	}
 }
 
 func SetValueRaw(mname string, mtype string, value float64) {
-	row, _ := db.Query("SELECT * FROM metrics WHERE id = $1 and type = $2;", mname, mtype)
+	row, _ := db.Query(context.Background(), "SELECT * FROM metrics WHERE id = $1 and type = $2;", mname, mtype)
 	if row.Err() != nil {
 		log.Printf("Error while execute query: %v", row.Err())
 	}
 	defer row.Close()
 	if row != nil && row.Next() {
-		_, err := db.Exec("UPDATE metrics SET value = $1 WHERE id = $2;", value, mname)
+		_, err := db.Exec(context.Background(), "UPDATE metrics SET value = $1 WHERE id = $2;", value, mname)
 		if err != nil {
 			log.Printf("%v", err)
 		}
 	} else {
-		_, err := db.Exec("INSERT INTO metrics (id, type, value) VALUES ($1, $2, $3);", mname, mtype, value)
+		_, err := db.Exec(context.Background(), "INSERT INTO metrics (id, type, value) VALUES ($1, $2, $3);", mname, mtype, value)
 		if err != nil {
-			log.Printf("%v", err)
+			var pgErr *pgconn.PgError
+			if errors.As(err, &pgErr) && pgErr.Code == "23505" {
+				log.Printf("PGError: %v|")
+			} else {
+				log.Printf("Error: %v", err)
+			}
 		}
 	}
 }
 
 func SetDeltaJSON(m models.Metric) {
-	row, _ := db.Query("SELECT delta FROM metrics WHERE id = $1 and type = $2;", m.ID, m.MType)
+	row, _ := db.Query(context.Background(), "SELECT delta FROM metrics WHERE id = $1 and type = $2;", m.ID, m.MType)
 	if row.Err() != nil {
 		log.Printf("Error while execute query: %v", row.Err())
 	}
@@ -114,34 +144,44 @@ func SetDeltaJSON(m models.Metric) {
 		res := models.Metric{}
 		row.Scan(&res.Delta)
 		*m.Delta += *res.Delta
-		_, err := db.Exec("UPDATE metrics SET delta = $1 WHERE id = $2;", m.Delta, m.ID)
+		_, err := db.Exec(context.Background(), "UPDATE metrics SET delta = $1 WHERE id = $2;", m.Delta, m.ID)
 		if err != nil {
 			log.Printf("%v", err)
 		}
 	} else {
-		_, err := db.Exec("INSERT INTO metrics (id, type, delta) VALUES ($1, $2, $3);", m.ID, m.MType, m.Delta)
+		_, err := db.Exec(context.Background(), "INSERT INTO metrics (id, type, delta) VALUES ($1, $2, $3);", m.ID, m.MType, m.Delta)
 		if err != nil {
-			log.Printf("Error while insert metric with counter type: %v", err)
+			var pgErr *pgconn.PgError
+			if errors.As(err, &pgErr) && pgErr.Code == "23505" {
+				log.Printf("PGError: %v|")
+			} else {
+				log.Fatalf("Migration failed: %v", err)
+			}
 		}
 	}
 	defer row.Close()
 }
 
 func SetValueJSON(m models.Metric) {
-	row, _ := db.Query("SELECT value FROM metrics WHERE id = $1 and type = $2;", m.ID, m.MType)
+	row, _ := db.Query(context.Background(), "SELECT value FROM metrics WHERE id = $1 and type = $2;", m.ID, m.MType)
 	if row.Err() != nil {
 		log.Printf("Error while execute query: %v", row.Err())
 	}
 	defer row.Close()
 	if row != nil && row.Next() {
-		_, err := db.Exec("UPDATE metrics SET value = $1 WHERE id = $2;", m.Value, m.ID)
+		_, err := db.Exec(context.Background(), "UPDATE metrics SET value = $1 WHERE id = $2;", m.Value, m.ID)
 		if err != nil {
 			log.Printf("%v", err)
 		}
 	} else {
-		_, err := db.Exec("INSERT INTO metrics (id, type, value) VALUES ($1, $2, $3);", m.ID, m.MType, m.Value)
+		_, err := db.Exec(context.Background(), "INSERT INTO metrics (id, type, value) VALUES ($1, $2, $3);", m.ID, m.MType, m.Value)
 		if err != nil {
-			log.Printf("Error while insert metric with gauge type %v", err)
+			var pgErr *pgconn.PgError
+			if errors.As(err, &pgErr) && pgErr.Code == "23505" {
+				log.Printf("PGError: %v|")
+			} else {
+				log.Fatalf("Migration failed: %v", err)
+			}
 		}
 	}
 }
@@ -161,13 +201,16 @@ func SetListJSON(list []models.Metric) {
 func GetAllMetrics(ms *models.MemStorage) {
 	list := []models.Metric{}
 	row := models.Metric{}
-	rows, _ := db.Query("SELECT * FROM metrics;")
+	rows, _ := db.Query(context.Background(), "SELECT * FROM metrics;")
 	if rows.Err() != nil {
 		log.Printf("Error while execute query: %v", rows.Err())
 		return
 	}
 	for i := 0; rows.Next(); i++ {
-		rows.Scan(&row.ID, &row.MType, &row.Delta, &row.Value)
+		err := rows.Scan(&row.ID, &row.MType, &row.Delta, &row.Value)
+		if err != nil {
+			return
+		}
 		list = append(list, row)
 	}
 	ms.SetMetricList(list)
