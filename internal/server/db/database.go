@@ -7,7 +7,6 @@ import (
 	"errors"
 	"github.com/golang-migrate/migrate/v4"
 	"github.com/golang-migrate/migrate/v4/database/postgres"
-	_ "github.com/golang-migrate/migrate/v4/database/postgres"
 	_ "github.com/golang-migrate/migrate/v4/source/file"
 	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -21,6 +20,9 @@ import (
 
 var db *pgxpool.Pool
 
+//go:embed scripts/000001_test.up.sql
+var file string
+
 func Init(DBUrl string) {
 	d, err := pgxpool.New(context.Background(), DBUrl)
 	if err != nil {
@@ -32,16 +34,16 @@ func Init(DBUrl string) {
 
 func migration(DBUrl string) {
 	wd, _ := os.Getwd()
-	filePath := filepath.Join(wd, "internal/server/db/scripts/", "")
-	d, err := sql.Open("postgres", DBUrl)
-	driver, err := postgres.WithInstance(d, &postgres.Config{})
+	filePath := filepath.Join(wd, "internal/server/db/scripts/")
+	d, _ := sql.Open("postgres", DBUrl)
+	driver, _ := postgres.WithInstance(d, &postgres.Config{})
 	m, err := migrate.NewWithDatabaseInstance(
 		"file:///"+filePath, "postgres", driver)
 	if err != nil {
 		log.Fatal(err)
 	}
 	if err = m.Up(); err != nil {
-		log.Fatal(err)
+		log.Printf("Migrating database: %v", err)
 	}
 }
 
