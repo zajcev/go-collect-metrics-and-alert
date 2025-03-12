@@ -1,15 +1,22 @@
-package storage
+package db
 
 import (
 	"context"
+	"database/sql"
+	_ "embed"
 	"errors"
+	"github.com/golang-migrate/migrate/v4"
+	"github.com/golang-migrate/migrate/v4/database/postgres"
+	_ "github.com/golang-migrate/migrate/v4/database/postgres"
+	_ "github.com/golang-migrate/migrate/v4/source/file"
 	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/zajcev/go-collect-metrics-and-alert/internal/constants"
 	"github.com/zajcev/go-collect-metrics-and-alert/internal/server/models"
 	"log"
 	"net/http"
-	"time"
+	"os"
+	"path/filepath"
 )
 
 var db *pgxpool.Pool
@@ -20,27 +27,21 @@ func Init(DBUrl string) {
 		log.Printf("Error while connect to database: %v", err)
 	}
 	db = d
+	migration(DBUrl)
 }
 
-func Migration() {
-	for i := 0; i <= 3; i++ {
-		delay := 1
-		if i == 3 {
-			log.Fatal("Migration failed, stopping after 3 attempts")
-		}
-		_, err := db.Exec(context.Background(), "CREATE TABLE IF NOT EXISTS metrics (id varchar NOT NULL, type varchar NOT NULL,delta bigint NULL,value double precision NULL,CONSTRAINT id UNIQUE (id));")
-		if err != nil {
-			var pgErr *pgconn.PgError
-			if errors.As(err, &pgErr) && pgErr.Code == "08000" {
-				log.Printf("Error: %v| Migration failed, retrying (%d/%d)", err, i+1, 3)
-				time.Sleep(time.Duration(delay) * time.Second)
-				delay += 2
-			} else {
-				log.Fatalf("Migration failed: %v", err)
-			}
-		} else {
-			return
-		}
+func migration(DBUrl string) {
+	wd, _ := os.Getwd()
+	filePath := filepath.Join(wd, "internal/server/db/scripts/", "")
+	d, err := sql.Open("postgres", DBUrl)
+	driver, err := postgres.WithInstance(d, &postgres.Config{})
+	m, err := migrate.NewWithDatabaseInstance(
+		"file:///"+filePath, "postgres", driver)
+	if err != nil {
+		log.Fatal(err)
+	}
+	if err = m.Up(); err != nil {
+		log.Fatal(err)
 	}
 }
 

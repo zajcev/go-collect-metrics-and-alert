@@ -8,6 +8,7 @@ import (
 	"github.com/zajcev/go-collect-metrics-and-alert/internal/constants"
 	"github.com/zajcev/go-collect-metrics-and-alert/internal/convert"
 	"github.com/zajcev/go-collect-metrics-and-alert/internal/server/config"
+	"github.com/zajcev/go-collect-metrics-and-alert/internal/server/db"
 	"github.com/zajcev/go-collect-metrics-and-alert/internal/server/models"
 	"github.com/zajcev/go-collect-metrics-and-alert/internal/server/storage"
 	"html/template"
@@ -34,7 +35,7 @@ func UpdateMetricHandler(w http.ResponseWriter, r *http.Request) {
 			w.WriteHeader(http.StatusBadRequest)
 		} else {
 			if *config.GetDBHost() != "" {
-				storage.SetValueRaw(mname, mtype, v)
+				db.SetValueRaw(mname, mtype, v)
 			} else {
 				metrics.SetGauge(mname, mtype, v)
 				syncWriter()
@@ -46,7 +47,7 @@ func UpdateMetricHandler(w http.ResponseWriter, r *http.Request) {
 			w.WriteHeader(http.StatusBadRequest)
 		} else {
 			if *config.GetDBHost() != "" {
-				storage.SetDeltaRaw(mname, mtype, v)
+				db.SetDeltaRaw(mname, mtype, v)
 			} else {
 				metrics.SetCounter(mname, mtype, v)
 				syncWriter()
@@ -74,7 +75,7 @@ func UpdateListMetricsJSON(w http.ResponseWriter, r *http.Request) {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		} else if *config.GetDBHost() != "" {
-			storage.SetListJSON(list)
+			db.SetListJSON(list)
 		} else {
 			metrics.SetMetricList(list)
 			syncWriter()
@@ -105,9 +106,9 @@ func UpdateMetricHandlerJSON(w http.ResponseWriter, r *http.Request) {
 			return
 		} else if *config.GetDBHost() != "" {
 			if m.MType == constants.Gauge {
-				storage.SetValueJSON(m)
+				db.SetValueJSON(m)
 			} else if m.MType == constants.Counter {
-				storage.SetDeltaJSON(m)
+				db.SetDeltaJSON(m)
 			}
 		} else {
 			if m.MType == constants.Gauge {
@@ -135,7 +136,7 @@ func GetMetricHandler(w http.ResponseWriter, r *http.Request) {
 	mtype := chi.URLParam(r, "type")
 	var value string
 	if *config.GetDBHost() != "" {
-		value = convert.GetString(storage.GetMetricRaw(mname, mtype))
+		value = convert.GetString(db.GetMetricRaw(mname, mtype))
 	} else {
 		value = metrics.GetMetric(mname, mtype)
 	}
@@ -169,7 +170,7 @@ func GetMetricHandlerJSON(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if *config.GetDBHost() != "" {
-		m, code = storage.GetMetricJSON(m)
+		m, code = db.GetMetricJSON(m)
 	} else {
 		m, code = metrics.GetMetricJSON(m)
 	}
@@ -185,7 +186,7 @@ func GetMetricHandlerJSON(w http.ResponseWriter, r *http.Request) {
 
 func GetAllMetrics(w http.ResponseWriter, r *http.Request) {
 	if *config.GetDBHost() != "" {
-		storage.GetAllMetrics(metrics)
+		db.GetAllMetrics(metrics)
 	}
 	t := template.New("t")
 	t, err := t.Parse(htmlTemplate)
@@ -242,7 +243,7 @@ func syncWriter() {
 }
 
 func DatabaseHandler(w http.ResponseWriter, r *http.Request) {
-	err := storage.DBPing()
+	err := db.DBPing()
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 	} else {

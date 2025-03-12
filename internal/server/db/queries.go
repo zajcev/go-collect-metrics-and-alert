@@ -1,4 +1,4 @@
-package storage
+package db
 
 const (
 	getMetric   = "SELECT * FROM metrics WHERE id = $1 and type = $2;"

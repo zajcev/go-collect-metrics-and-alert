@@ -5,9 +5,9 @@ import (
 	"github.com/jasonlvhit/gocron"
 	"github.com/zajcev/go-collect-metrics-and-alert/internal/convert"
 	"github.com/zajcev/go-collect-metrics-and-alert/internal/server/config"
+	"github.com/zajcev/go-collect-metrics-and-alert/internal/server/db"
 	"github.com/zajcev/go-collect-metrics-and-alert/internal/server/handlers"
 	"github.com/zajcev/go-collect-metrics-and-alert/internal/server/middleware"
-	"github.com/zajcev/go-collect-metrics-and-alert/internal/server/storage"
 	"log"
 	"net/http"
 )
@@ -40,8 +40,7 @@ func main() {
 			go startScheduler(convert.GetUint(*config.GetStoreInterval()), *config.GetFilePath())
 		}
 	} else {
-		storage.Init(*config.GetDBHost())
-		storage.Migration()
+		db.Init(*config.GetDBHost())
 	}
 
 	log.Fatal(http.ListenAndServe(*config.GetAddress(), Router()))
