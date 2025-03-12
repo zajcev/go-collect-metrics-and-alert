@@ -28,7 +28,7 @@ func Migration() {
 		if i == 3 {
 			log.Fatal("Migration failed, stopping after 3 attempts")
 		}
-		_, err := db.Exec(context.Background(), "CREATE TABLE IF NOT EXISTS metrics (id varchar NOT NULL, type varchar NOT NULL,delta bigint NULL,value double precision NULL);")
+		_, err := db.Exec(context.Background(), "CREATE TABLE IF NOT EXISTS metrics (id varchar NOT NULL, type varchar NOT NULL,delta bigint NULL,value double precision NULL,CONSTRAINT id UNIQUE (id));")
 		if err != nil {
 			var pgErr *pgconn.PgError
 			if errors.As(err, &pgErr) && pgErr.Code == "08000" {
@@ -51,7 +51,7 @@ func DBPing() error {
 func GetMetricRaw(mname string, mtype string) interface{} {
 	var value interface{}
 	if mtype == constants.Gauge {
-		row, _ := db.Query(context.Background(), "SELECT value FROM metrics WHERE id = $1 and type = $2;", mname, mtype)
+		row, _ := db.Query(context.Background(), getValue, mname, mtype)
 		if row.Err() != nil {
 			log.Printf("Error while execute query: %v", row.Err())
 			return nil
@@ -63,7 +63,7 @@ func GetMetricRaw(mname string, mtype string) interface{} {
 		}
 		return value
 	} else {
-		row, _ := db.Query(context.Background(), "SELECT value FROM metrics WHERE id = $1 and type = $2;", mname, mtype)
+		row, _ := db.Query(context.Background(), getDelta, mname, mtype)
 		if row.Err() != nil {
 			log.Printf("Error while execute query: %v", row.Err())
 			return nil
@@ -78,7 +78,7 @@ func GetMetricRaw(mname string, mtype string) interface{} {
 }
 
 func GetMetricJSON(m models.Metric) (models.Metric, int) {
-	row, _ := db.Query(context.Background(), "SELECT * FROM metrics WHERE id = $1;", m.ID)
+	row, _ := db.Query(context.Background(), getMetric, m.ID, m.MType)
 	if row.Err() != nil {
 		log.Printf("Error while execute query: %v", row.Err())
 	}
@@ -91,15 +91,15 @@ func GetMetricJSON(m models.Metric) (models.Metric, int) {
 }
 
 func SetDeltaRaw(mname string, mtype string, delta int64) {
-	row, _ := db.Query(context.Background(), "SELECT * FROM metrics WHERE id = $1 and type = $2;", mname, mtype)
+	row, _ := db.Query(context.Background(), getDelta, mname, mtype)
 	defer row.Close()
 	if row != nil && row.Next() {
-		_, err := db.Exec(context.Background(), "UPDATE metrics SET delta = $1 WHERE id = $2;", delta, mname)
+		_, err := db.Exec(context.Background(), updateDelta, delta, mname)
 		if err != nil {
 			log.Printf("%v", err)
 		}
 	} else {
-		_, err := db.Exec(context.Background(), "INSERT INTO metrics (id, type, delta) VALUES ($1, $2, $3);", mname, mtype, delta)
+		_, err := db.Exec(context.Background(), insertDelta, mname, mtype, delta)
 		if err != nil {
 			var pgErr *pgconn.PgError
 			if errors.As(err, &pgErr) && pgErr.Code == "23505" {
@@ -112,18 +112,18 @@ func SetDeltaRaw(mname string, mtype string, delta int64) {
 }
 
 func SetValueRaw(mname string, mtype string, value float64) {
-	row, _ := db.Query(context.Background(), "SELECT * FROM metrics WHERE id = $1 and type = $2;", mname, mtype)
+	row, _ := db.Query(context.Background(), getValue, mname, mtype)
 	if row.Err() != nil {
 		log.Printf("Error while execute query: %v", row.Err())
 	}
 	defer row.Close()
 	if row != nil && row.Next() {
-		_, err := db.Exec(context.Background(), "UPDATE metrics SET value = $1 WHERE id = $2;", value, mname)
+		_, err := db.Exec(context.Background(), updateValue, value, mname)
 		if err != nil {
 			log.Printf("%v", err)
 		}
 	} else {
-		_, err := db.Exec(context.Background(), "INSERT INTO metrics (id, type, value) VALUES ($1, $2, $3);", mname, mtype, value)
+		_, err := db.Exec(context.Background(), insertValue, mname, mtype, value)
 		if err != nil {
 			var pgErr *pgconn.PgError
 			if errors.As(err, &pgErr) && pgErr.Code == "23505" {
@@ -136,7 +136,7 @@ func SetValueRaw(mname string, mtype string, value float64) {
 }
 
 func SetDeltaJSON(m models.Metric) {
-	row, _ := db.Query(context.Background(), "SELECT delta FROM metrics WHERE id = $1 and type = $2;", m.ID, m.MType)
+	row, _ := db.Query(context.Background(), getDelta, m.ID, m.MType)
 	if row.Err() != nil {
 		log.Printf("Error while execute query: %v", row.Err())
 	}
@@ -144,12 +144,12 @@ func SetDeltaJSON(m models.Metric) {
 		res := models.Metric{}
 		row.Scan(&res.Delta)
 		*m.Delta += *res.Delta
-		_, err := db.Exec(context.Background(), "UPDATE metrics SET delta = $1 WHERE id = $2;", m.Delta, m.ID)
+		_, err := db.Exec(context.Background(), updateDelta, m.Delta, m.ID)
 		if err != nil {
 			log.Printf("%v", err)
 		}
 	} else {
-		_, err := db.Exec(context.Background(), "INSERT INTO metrics (id, type, delta) VALUES ($1, $2, $3);", m.ID, m.MType, m.Delta)
+		_, err := db.Exec(context.Background(), insertDelta, m.ID, m.MType, m.Delta)
 		if err != nil {
 			var pgErr *pgconn.PgError
 			if errors.As(err, &pgErr) && pgErr.Code == "23505" {
@@ -163,18 +163,18 @@ func SetDeltaJSON(m models.Metric) {
 }
 
 func SetValueJSON(m models.Metric) {
-	row, _ := db.Query(context.Background(), "SELECT value FROM metrics WHERE id = $1 and type = $2;", m.ID, m.MType)
+	row, _ := db.Query(context.Background(), getValue, m.ID, m.MType)
 	if row.Err() != nil {
 		log.Printf("Error while execute query: %v", row.Err())
 	}
 	defer row.Close()
 	if row != nil && row.Next() {
-		_, err := db.Exec(context.Background(), "UPDATE metrics SET value = $1 WHERE id = $2;", m.Value, m.ID)
+		_, err := db.Exec(context.Background(), updateValue, m.Value, m.ID)
 		if err != nil {
 			log.Printf("%v", err)
 		}
 	} else {
-		_, err := db.Exec(context.Background(), "INSERT INTO metrics (id, type, value) VALUES ($1, $2, $3);", m.ID, m.MType, m.Value)
+		_, err := db.Exec(context.Background(), insertValue, m.ID, m.MType, m.Value)
 		if err != nil {
 			var pgErr *pgconn.PgError
 			if errors.As(err, &pgErr) && pgErr.Code == "23505" {
@@ -201,7 +201,7 @@ func SetListJSON(list []models.Metric) {
 func GetAllMetrics(ms *models.MemStorage) {
 	list := []models.Metric{}
 	row := models.Metric{}
-	rows, _ := db.Query(context.Background(), "SELECT * FROM metrics;")
+	rows, _ := db.Query(context.Background(), getAll)
 	if rows.Err() != nil {
 		log.Printf("Error while execute query: %v", rows.Err())
 		return
