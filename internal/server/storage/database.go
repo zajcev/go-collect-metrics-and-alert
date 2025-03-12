@@ -91,97 +91,49 @@ func GetMetricJSON(m models.Metric) (models.Metric, int) {
 }
 
 func SetDeltaRaw(mname string, mtype string, delta int64) {
-	row, _ := db.Query(context.Background(), getDelta, mname, mtype)
-	defer row.Close()
-	if row != nil && row.Next() {
-		_, err := db.Exec(context.Background(), updateDelta, delta, mname)
-		if err != nil {
-			log.Printf("%v", err)
-		}
-	} else {
-		_, err := db.Exec(context.Background(), insertDelta, mname, mtype, delta)
-		if err != nil {
-			var pgErr *pgconn.PgError
-			if errors.As(err, &pgErr) && pgErr.Code == "23505" {
-				log.Printf("PGError: %v", pgErr)
-			} else {
-				log.Printf("Error: %v", err)
-			}
+	_, err := db.Exec(context.Background(), insertDelta, mname, mtype, delta)
+	if err != nil {
+		var pgErr *pgconn.PgError
+		if errors.As(err, &pgErr) {
+			log.Printf("PGError: %v", pgErr)
+		} else {
+			log.Printf("Error while insert metric: Error=%v, id=%v, type=%v, delta=%v", err, mname, mtype, delta)
 		}
 	}
 }
 
 func SetValueRaw(mname string, mtype string, value float64) {
-	row, _ := db.Query(context.Background(), getValue, mname, mtype)
-	if row.Err() != nil {
-		log.Printf("Error while execute query: %v", row.Err())
-	}
-	defer row.Close()
-	if row != nil && row.Next() {
-		_, err := db.Exec(context.Background(), updateValue, value, mname)
-		if err != nil {
-			log.Printf("%v", err)
-		}
-	} else {
-		_, err := db.Exec(context.Background(), insertValue, mname, mtype, value)
-		if err != nil {
-			var pgErr *pgconn.PgError
-			if errors.As(err, &pgErr) && pgErr.Code == "23505" {
-				log.Printf("PGError: %v", pgErr)
-			} else {
-				log.Printf("Error: %v", err)
-			}
+	_, err := db.Exec(context.Background(), insertValue, mname, mtype, value)
+	if err != nil {
+		var pgErr *pgconn.PgError
+		if errors.As(err, &pgErr) {
+			log.Printf("PGError: %v", pgErr)
+		} else {
+			log.Printf("Error while insert metric: Error=%v, id=%v, type=%v, value=%v", err, mname, mtype, value)
 		}
 	}
 }
 
 func SetDeltaJSON(m models.Metric) {
-	row, _ := db.Query(context.Background(), getDelta, m.ID, m.MType)
-	if row.Err() != nil {
-		log.Printf("Error while execute query: %v", row.Err())
-	}
-	if row != nil && row.Next() {
-		res := models.Metric{}
-		row.Scan(&res.Delta)
-		*m.Delta += *res.Delta
-		_, err := db.Exec(context.Background(), updateDelta, m.Delta, m.ID)
-		if err != nil {
-			log.Printf("%v", err)
-		}
-	} else {
-		_, err := db.Exec(context.Background(), insertDelta, m.ID, m.MType, m.Delta)
-		if err != nil {
-			var pgErr *pgconn.PgError
-			if errors.As(err, &pgErr) && pgErr.Code == "23505" {
-				log.Printf("PGError: %v", pgErr)
-			} else {
-				log.Fatalf("Migration failed: %v", err)
-			}
+	_, err := db.Exec(context.Background(), insertDelta, m.ID, m.MType, m.Delta)
+	if err != nil {
+		var pgErr *pgconn.PgError
+		if errors.As(err, &pgErr) {
+			log.Printf("PGError: %v", pgErr)
+		} else {
+			log.Printf("Error while insert metric: Error=%v, id=%v, type=%v, delta=%v", err, m.ID, m.MType, m.Delta)
 		}
 	}
-	defer row.Close()
 }
 
 func SetValueJSON(m models.Metric) {
-	row, _ := db.Query(context.Background(), getValue, m.ID, m.MType)
-	if row.Err() != nil {
-		log.Printf("Error while execute query: %v", row.Err())
-	}
-	defer row.Close()
-	if row != nil && row.Next() {
-		_, err := db.Exec(context.Background(), updateValue, m.Value, m.ID)
-		if err != nil {
-			log.Printf("%v", err)
-		}
-	} else {
-		_, err := db.Exec(context.Background(), insertValue, m.ID, m.MType, m.Value)
-		if err != nil {
-			var pgErr *pgconn.PgError
-			if errors.As(err, &pgErr) && pgErr.Code == "23505" {
-				log.Printf("PGError: %v", pgErr)
-			} else {
-				log.Fatalf("Migration failed: %v", err)
-			}
+	_, err := db.Exec(context.Background(), insertValue, m.ID, m.MType, m.Value)
+	if err != nil {
+		var pgErr *pgconn.PgError
+		if errors.As(err, &pgErr) {
+			log.Printf("PGError: %v", pgErr)
+		} else {
+			log.Printf("Error while insert metric: Error=%v, id=%v, type=%v, value=%v", err, m.ID, m.MType, m.Value)
 		}
 	}
 }
@@ -193,35 +145,12 @@ func SetListJSON(list []models.Metric) {
 	}
 	for _, v := range list {
 		if v.MType == constants.Counter {
-			row, _ := db.Query(context.Background(), getDelta, v.ID, v.MType)
-			if row.Err() != nil {
-				log.Printf("Error while execute query: %v", row.Err())
-			}
-			if row.Next() {
-				res := models.Metric{}
-				err = row.Scan(&res.Delta)
-				if err != nil {
-					log.Printf("Error while row.Scan: %v", row.Err())
-				}
-				*v.Delta += *res.Delta
-				_, err = tx.Exec(context.Background(), updateDelta, v.Delta, v.ID)
-			} else {
-				_, err = tx.Exec(context.Background(), insertDelta, v.ID, v.MType, v.Delta)
-			}
-			row.Close()
+			_, err = tx.Exec(context.Background(), insertDelta, v.ID, v.MType, v.Delta)
 		} else {
-			row, _ := db.Query(context.Background(), getValue, v.ID, v.MType)
-			if row.Next() && row != nil {
-				_, err = db.Exec(context.Background(), updateValue, v.Value, v.ID)
-				if err != nil {
-					log.Printf("%v", err)
-				}
-			} else {
-				_, err = tx.Exec(context.Background(), insertValue, v.ID, v.MType, v.Value)
-			}
-			row.Close()
+			_, err = tx.Exec(context.Background(), insertValue, v.ID, v.MType, v.Value)
 		}
 		if err != nil {
+			log.Printf("%v", err)
 			err = tx.Rollback(context.Background())
 			if err != nil {
 				log.Printf("Error while rollback transaction: %v", err)
