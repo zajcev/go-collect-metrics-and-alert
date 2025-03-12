@@ -187,14 +187,50 @@ func SetValueJSON(m models.Metric) {
 }
 
 func SetListJSON(list []models.Metric) {
+	tx, err := db.Begin(context.Background())
+	if err != nil {
+		log.Printf("Error while begin transaction: %v", err)
+	}
 	for _, v := range list {
 		if v.MType == constants.Counter {
-			SetDeltaJSON(v)
-		} else if v.MType == constants.Gauge {
-			SetValueJSON(v)
+			row, _ := db.Query(context.Background(), getDelta, v.ID, v.MType)
+			if row.Err() != nil {
+				log.Printf("Error while execute query: %v", row.Err())
+			}
+			if row.Next() {
+				res := models.Metric{}
+				err = row.Scan(&res.Delta)
+				if err != nil {
+					log.Printf("Error while row.Scan: %v", row.Err())
+				}
+				*v.Delta += *res.Delta
+				_, err = tx.Exec(context.Background(), updateDelta, v.Delta, v.ID)
+			} else {
+				_, err = tx.Exec(context.Background(), insertDelta, v.ID, v.MType, v.Delta)
+			}
+			row.Close()
 		} else {
-			return
+			row, _ := db.Query(context.Background(), getValue, v.ID, v.MType)
+			if row.Next() && row != nil {
+				_, err = db.Exec(context.Background(), updateValue, v.Value, v.ID)
+				if err != nil {
+					log.Printf("%v", err)
+				}
+			} else {
+				_, err = tx.Exec(context.Background(), insertValue, v.ID, v.MType, v.Value)
+			}
+			row.Close()
 		}
+		if err != nil {
+			err = tx.Rollback(context.Background())
+			if err != nil {
+				log.Printf("Error while rollback transaction: %v", err)
+			}
+		}
+	}
+	err = tx.Commit(context.Background())
+	if err != nil {
+		return
 	}
 }
 
