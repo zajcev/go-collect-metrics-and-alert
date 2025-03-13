@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"github.com/go-chi/chi/v5"
 	_ "github.com/lib/pq"
@@ -15,6 +16,7 @@ import (
 	"log"
 	"net/http"
 	"strconv"
+	"time"
 )
 
 var metrics = models.NewMetricsStorage()
@@ -35,7 +37,9 @@ func UpdateMetricHandler(w http.ResponseWriter, r *http.Request) {
 			w.WriteHeader(http.StatusBadRequest)
 		} else {
 			if *config.GetDBHost() != "" {
-				db.SetValueRaw(mname, mtype, v)
+				ctx, cancel := context.WithTimeout(r.Context(), 1*time.Second)
+				defer cancel()
+				db.SetValueRaw(ctx, mname, mtype, v)
 			} else {
 				metrics.SetGauge(mname, mtype, v)
 				syncWriter()
@@ -47,7 +51,9 @@ func UpdateMetricHandler(w http.ResponseWriter, r *http.Request) {
 			w.WriteHeader(http.StatusBadRequest)
 		} else {
 			if *config.GetDBHost() != "" {
-				db.SetDeltaRaw(mname, mtype, v)
+				ctx, cancel := context.WithTimeout(r.Context(), 1*time.Second)
+				defer cancel()
+				db.SetDeltaRaw(ctx, mname, mtype, v)
 			} else {
 				metrics.SetCounter(mname, mtype, v)
 				syncWriter()
@@ -75,7 +81,9 @@ func UpdateListMetricsJSON(w http.ResponseWriter, r *http.Request) {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		} else if *config.GetDBHost() != "" {
-			db.SetListJSON(list)
+			ctx, cancel := context.WithTimeout(r.Context(), 1*time.Second)
+			defer cancel()
+			db.SetListJSON(ctx, list)
 		} else {
 			metrics.SetMetricList(list)
 			syncWriter()
@@ -105,10 +113,12 @@ func UpdateMetricHandlerJSON(w http.ResponseWriter, r *http.Request) {
 			http.Error(w, err.Error(), http.StatusBadRequest)
 			return
 		} else if *config.GetDBHost() != "" {
+			ctx, cancel := context.WithTimeout(r.Context(), 1*time.Second)
+			defer cancel()
 			if m.MType == constants.Gauge {
-				db.SetValueJSON(m)
+				db.SetValueJSON(ctx, m)
 			} else if m.MType == constants.Counter {
-				db.SetDeltaJSON(m)
+				db.SetDeltaJSON(ctx, m)
 			}
 		} else {
 			if m.MType == constants.Gauge {
@@ -136,7 +146,9 @@ func GetMetricHandler(w http.ResponseWriter, r *http.Request) {
 	mtype := chi.URLParam(r, "type")
 	var value string
 	if *config.GetDBHost() != "" {
-		value = convert.GetString(db.GetMetricRaw(mname, mtype))
+		ctx, cancel := context.WithTimeout(r.Context(), 1*time.Second)
+		defer cancel()
+		value = convert.GetString(db.GetMetricRaw(ctx, mname, mtype))
 	} else {
 		value = metrics.GetMetric(mname, mtype)
 	}
@@ -170,7 +182,9 @@ func GetMetricHandlerJSON(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if *config.GetDBHost() != "" {
-		m, code = db.GetMetricJSON(m)
+		ctx, cancel := context.WithTimeout(r.Context(), 1*time.Second)
+		defer cancel()
+		m, code = db.GetMetricJSON(ctx, m)
 	} else {
 		m, code = metrics.GetMetricJSON(m)
 	}
@@ -186,7 +200,9 @@ func GetMetricHandlerJSON(w http.ResponseWriter, r *http.Request) {
 
 func GetAllMetrics(w http.ResponseWriter, r *http.Request) {
 	if *config.GetDBHost() != "" {
-		db.GetAllMetrics(metrics)
+		ctx, cancel := context.WithTimeout(r.Context(), 2*time.Second)
+		defer cancel()
+		db.GetAllMetrics(ctx, metrics)
 	}
 	t := template.New("t")
 	t, err := t.Parse(htmlTemplate)
@@ -243,7 +259,9 @@ func syncWriter() {
 }
 
 func DatabaseHandler(w http.ResponseWriter, r *http.Request) {
-	err := db.DBPing()
+	ctx, cancel := context.WithTimeout(r.Context(), 1*time.Second)
+	defer cancel()
+	err := db.Ping(ctx)
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 	} else {

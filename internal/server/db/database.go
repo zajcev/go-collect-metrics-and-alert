@@ -23,8 +23,8 @@ var db *pgxpool.Pool
 //go:embed scripts/000001_test.up.sql
 var file string
 
-func Init(DBUrl string) {
-	d, err := pgxpool.New(context.Background(), DBUrl)
+func Init(ctx context.Context, DBUrl string) {
+	d, err := pgxpool.New(ctx, DBUrl)
 	if err != nil {
 		log.Printf("Error while connect to database: %v", err)
 	}
@@ -47,14 +47,14 @@ func migration(DBUrl string) {
 	}
 }
 
-func DBPing() error {
-	return db.Ping(context.Background())
+func Ping(ctx context.Context) error {
+	return db.Ping(ctx)
 }
 
-func GetMetricRaw(mname string, mtype string) interface{} {
+func GetMetricRaw(ctx context.Context, mname string, mtype string) interface{} {
 	var value interface{}
 	if mtype == constants.Gauge {
-		row, _ := db.Query(context.Background(), getValue, mname, mtype)
+		row, _ := db.Query(ctx, getValue, mname, mtype)
 		if row.Err() != nil {
 			log.Printf("Error while execute query: %v", row.Err())
 			return nil
@@ -66,7 +66,7 @@ func GetMetricRaw(mname string, mtype string) interface{} {
 		}
 		return value
 	} else {
-		row, _ := db.Query(context.Background(), getDelta, mname, mtype)
+		row, _ := db.Query(ctx, getDelta, mname, mtype)
 		if row.Err() != nil {
 			log.Printf("Error while execute query: %v", row.Err())
 			return nil
@@ -80,8 +80,8 @@ func GetMetricRaw(mname string, mtype string) interface{} {
 	return nil
 }
 
-func GetMetricJSON(m models.Metric) (models.Metric, int) {
-	row, _ := db.Query(context.Background(), getMetric, m.ID, m.MType)
+func GetMetricJSON(ctx context.Context, m models.Metric) (models.Metric, int) {
+	row, _ := db.Query(ctx, getMetric, m.ID, m.MType)
 	if row.Err() != nil {
 		log.Printf("Error while execute query: %v", row.Err())
 	}
@@ -93,8 +93,8 @@ func GetMetricJSON(m models.Metric) (models.Metric, int) {
 	return models.Metric{}, http.StatusNotFound
 }
 
-func SetDeltaRaw(mname string, mtype string, delta int64) {
-	_, err := db.Exec(context.Background(), insertDelta, mname, mtype, delta)
+func SetDeltaRaw(ctx context.Context, mname string, mtype string, delta int64) {
+	_, err := db.Exec(ctx, insertDelta, mname, mtype, delta)
 	if err != nil {
 		var pgErr *pgconn.PgError
 		if errors.As(err, &pgErr) {
@@ -105,8 +105,8 @@ func SetDeltaRaw(mname string, mtype string, delta int64) {
 	}
 }
 
-func SetValueRaw(mname string, mtype string, value float64) {
-	_, err := db.Exec(context.Background(), insertValue, mname, mtype, value)
+func SetValueRaw(ctx context.Context, mname string, mtype string, value float64) {
+	_, err := db.Exec(ctx, insertValue, mname, mtype, value)
 	if err != nil {
 		var pgErr *pgconn.PgError
 		if errors.As(err, &pgErr) {
@@ -117,8 +117,8 @@ func SetValueRaw(mname string, mtype string, value float64) {
 	}
 }
 
-func SetDeltaJSON(m models.Metric) {
-	_, err := db.Exec(context.Background(), insertDelta, m.ID, m.MType, m.Delta)
+func SetDeltaJSON(ctx context.Context, m models.Metric) {
+	_, err := db.Exec(ctx, insertDelta, m.ID, m.MType, m.Delta)
 	if err != nil {
 		var pgErr *pgconn.PgError
 		if errors.As(err, &pgErr) {
@@ -129,8 +129,8 @@ func SetDeltaJSON(m models.Metric) {
 	}
 }
 
-func SetValueJSON(m models.Metric) {
-	_, err := db.Exec(context.Background(), insertValue, m.ID, m.MType, m.Value)
+func SetValueJSON(ctx context.Context, m models.Metric) {
+	_, err := db.Exec(ctx, insertValue, m.ID, m.MType, m.Value)
 	if err != nil {
 		var pgErr *pgconn.PgError
 		if errors.As(err, &pgErr) {
@@ -141,35 +141,35 @@ func SetValueJSON(m models.Metric) {
 	}
 }
 
-func SetListJSON(list []models.Metric) {
-	tx, err := db.Begin(context.Background())
+func SetListJSON(ctx context.Context, list []models.Metric) {
+	tx, err := db.Begin(ctx)
 	if err != nil {
 		log.Printf("Error while begin transaction: %v", err)
 	}
 	for _, v := range list {
 		if v.MType == constants.Counter {
-			_, err = tx.Exec(context.Background(), insertDelta, v.ID, v.MType, v.Delta)
+			_, err = tx.Exec(ctx, insertDelta, v.ID, v.MType, v.Delta)
 		} else {
-			_, err = tx.Exec(context.Background(), insertValue, v.ID, v.MType, v.Value)
+			_, err = tx.Exec(ctx, insertValue, v.ID, v.MType, v.Value)
 		}
 		if err != nil {
 			log.Printf("%v", err)
-			err = tx.Rollback(context.Background())
+			err = tx.Rollback(ctx)
 			if err != nil {
 				log.Printf("Error while rollback transaction: %v", err)
 			}
 		}
 	}
-	err = tx.Commit(context.Background())
+	err = tx.Commit(ctx)
 	if err != nil {
 		return
 	}
 }
 
-func GetAllMetrics(ms *models.MemStorage) {
+func GetAllMetrics(ctx context.Context, ms *models.MemStorage) {
 	list := []models.Metric{}
 	row := models.Metric{}
-	rows, _ := db.Query(context.Background(), getAll)
+	rows, _ := db.Query(ctx, getAll)
 	if rows.Err() != nil {
 		log.Printf("Error while execute query: %v", rows.Err())
 		return

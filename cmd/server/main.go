@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"github.com/go-chi/chi/v5"
 	"github.com/jasonlvhit/gocron"
 	"github.com/zajcev/go-collect-metrics-and-alert/internal/convert"
@@ -40,7 +41,8 @@ func main() {
 			go startScheduler(convert.GetUint(*config.GetStoreInterval()), *config.GetFilePath())
 		}
 	} else {
-		db.Init(*config.GetDBHost())
+		ctx := context.Background()
+		db.Init(ctx, *config.GetDBHost())
 	}
 
 	log.Fatal(http.ListenAndServe(*config.GetAddress(), Router()))
