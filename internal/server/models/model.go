@@ -25,6 +25,7 @@ func NewMetricsStorage() *MemStorage {
 
 func (ms *MemStorage) SetGauge(name string, metricType string, value float64) int {
 	ms.Metrics[name] = Metric{
+		ID:    name,
 		MType: metricType,
 		Value: &value,
 	}
@@ -93,4 +94,17 @@ func (ms *MemStorage) GetMetricJSON(input Metric) (Metric, int) {
 
 func (ms *MemStorage) GetAllMetrics() *MemStorage {
 	return ms
+}
+
+func (ms *MemStorage) SetMetricList(list []Metric) int {
+	for _, v := range list {
+		if v.MType == constants.Gauge {
+			ms.SetGaugeJSON(v)
+		} else if v.MType == constants.Counter {
+			ms.SetCounterJSON(v)
+		} else {
+			return http.StatusBadRequest
+		}
+	}
+	return http.StatusOK
 }
