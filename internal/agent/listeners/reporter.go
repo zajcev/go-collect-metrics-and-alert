@@ -109,6 +109,7 @@ func retry(client *http.Client, req *http.Request, count int) (*http.Response, e
 	}
 	return nil, res
 }
+
 func calculateSHA256Hash(data []byte, key string) string {
 	k := []byte(key)
 	signedData := append(k, data...)

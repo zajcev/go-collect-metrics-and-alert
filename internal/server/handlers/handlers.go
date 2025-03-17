@@ -3,6 +3,8 @@ package handlers
 import (
 	"bytes"
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
 	"github.com/go-chi/chi/v5"
 	_ "github.com/lib/pq"
@@ -77,6 +79,12 @@ func UpdateListMetricsJSON(w http.ResponseWriter, r *http.Request) {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
+		if config.GetHashKey() != "" {
+			if !checkSHA256Hash(buf.Bytes(), config.GetHashKey(), r.Header.Get("HashSHA256")) {
+				http.Error(w, "Mismatch sha256sum", http.StatusBadRequest)
+				return
+			}
+		}
 		if err = json.Unmarshal(buf.Bytes(), &list); err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
@@ -89,13 +97,20 @@ func UpdateListMetricsJSON(w http.ResponseWriter, r *http.Request) {
 			syncWriter()
 		}
 		resp, err := json.Marshal(&list)
+		if config.GetHashKey() != "" {
+			w.Header().Set("HashSHA256", calculateSHA256Hash(resp, config.GetHashKey()))
+		}
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusOK)
-		w.Write(resp)
+		_, err = w.Write(resp)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
 	} else {
 		w.WriteHeader(http.StatusBadRequest)
 	}
@@ -266,5 +281,21 @@ func DatabaseHandler(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusInternalServerError)
 	} else {
 		w.WriteHeader(http.StatusOK)
+	}
+}
+
+func calculateSHA256Hash(data []byte, key string) string {
+	k := []byte(key)
+	signedData := append(k, data...)
+	hash := sha256.Sum256(signedData)
+	return hex.EncodeToString(hash[:])
+}
+
+func checkSHA256Hash(data []byte, key string, sum string) bool {
+	hash := calculateSHA256Hash(data, key)
+	if hash == sum {
+		return true
+	} else {
+		return false
 	}
 }

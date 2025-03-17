@@ -15,10 +15,12 @@ type Flags struct {
 	FilePath      string `env:"FILE_STORAGE_PATH"`
 	Restore       bool   `env:"RESTORE"`
 	DBHost        string `env:"DATABASE_DSN"`
+	HashKey       string `env:"KEY"`
 }
 
 func NewConfig() error {
 	flag.StringVar(&flags.Address, "a", "localhost:8080", "address and port to run server")
+	flag.StringVar(&flags.HashKey, "k", "12h5b12b521b1", "key for sha256sum")
 	flag.IntVar(&flags.StoreInterval, "i", 300, "interval between stored files")
 	flag.StringVar(&flags.FilePath, "f", "/tmp/metrics", "path to store files") ///tmp/metrics
 	flag.BoolVar(&flags.Restore, "r", false, "restore files")
@@ -44,4 +46,8 @@ func GetRestore() bool { return convert.GetBool(&flags.Restore) }
 
 func GetDBHost() string {
 	return convert.GetString(&flags.DBHost)
+}
+
+func GetHashKey() string {
+	return convert.GetString(&flags.HashKey)
 }
