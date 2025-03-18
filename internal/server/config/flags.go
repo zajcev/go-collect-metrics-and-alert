@@ -20,7 +20,7 @@ type Flags struct {
 
 func NewConfig() error {
 	flag.StringVar(&flags.Address, "a", "localhost:8080", "address and port to run server")
-	flag.StringVar(&flags.HashKey, "k", "12h5b12b521b1", "key for sha256sum")
+	flag.StringVar(&flags.HashKey, "k", "", "key for sha256sum")
 	flag.IntVar(&flags.StoreInterval, "i", 300, "interval between stored files")
 	flag.StringVar(&flags.FilePath, "f", "/tmp/metrics", "path to store files") ///tmp/metrics
 	flag.BoolVar(&flags.Restore, "r", false, "restore files")
