@@ -11,3 +11,5 @@ func GetFloat(s any) float64 { return cast.ToFloat64(s) }
 func GetInt64(s any) int64 { return cast.ToInt64(s) }
 
 func GetBool(s any) bool { return cast.ToBool(s) }
+
+func GetInt(s any) int { return cast.ToInt(s) }
