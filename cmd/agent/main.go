@@ -9,12 +9,16 @@ import (
 
 func main() {
 	err := config.NewConfig()
+	maxConcurrentCalls := config.GetRateLimit()
+	semaphore := make(chan struct{}, maxConcurrentCalls)
 	if err != nil {
 		log.Fatalf("Error while config initialization: %v", err)
 	}
 	scheduler := gocron.NewScheduler()
 	monitorDone := make(chan bool, 1)
 	reporterDone := make(chan bool, 1)
+	additionalDone := make(chan bool, 1)
+
 	err = scheduler.Every(config.GetPollInterval()).Second().Do(func() {
 		<-monitorDone
 		listeners.NewMonitor()
@@ -24,14 +28,25 @@ func main() {
 		log.Fatal(err)
 	}
 	err = scheduler.Every(config.GetReportInterval()).Second().Do(func(url string) {
-		<-reporterDone
+		semaphore <- struct{}{}
+		defer func() {
+			<-semaphore
+		}()
 		listeners.NewReporter(url)
-		reporterDone <- true
 	}, "http://"+config.GetAddress()+"/updates/")
 	if err != nil {
 		log.Fatal(err)
 	}
+	err = scheduler.Every(config.GetPollInterval()).Second().Do(func() {
+		<-additionalDone
+		listeners.AdditionalMetrics()
+		additionalDone <- true
+	})
+	if err != nil {
+		log.Fatal(err)
+	}
 	monitorDone <- true
+	additionalDone <- true
 	reporterDone <- true
 	sc := scheduler.Start()
 	<-sc

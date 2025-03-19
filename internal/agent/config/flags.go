@@ -14,13 +14,15 @@ type Flags struct {
 	ReportInterval int    `env:"REPORT_INTERVAL"`
 	PollInterval   int    `env:"POLL_INTERVAL"`
 	HashKey        string `env:"KEY"`
+	RateLimit      int    `env:"RATE_LIMIT"`
 }
 
 func NewConfig() error {
 	flag.StringVar(&flags.Address, "a", "localhost:8080", "address and port to run server")
 	flag.StringVar(&flags.HashKey, "k", "12h5b12b521b", "key for sha256sum")
-	flag.IntVar(&flags.ReportInterval, "r", 2, "interval between report calls")
+	flag.IntVar(&flags.ReportInterval, "r", 1, "interval between report calls")
 	flag.IntVar(&flags.PollInterval, "p", 1, "interval between polls")
+	flag.IntVar(&flags.RateLimit, "l", 2, "request rate limiter")
 	flag.Parse()
 	if err := env.Parse(&flags); err != nil {
 		log.Printf("%+v", err)
@@ -38,6 +40,5 @@ func GetReportInterval() uint64 {
 func GetPollInterval() uint64 {
 	return convert.GetUint(&flags.PollInterval)
 }
-func GetHashKey() string {
-	return convert.GetString(&flags.HashKey)
-}
+func GetHashKey() string { return convert.GetString(&flags.HashKey) }
+func GetRateLimit() int  { return convert.GetInt(&flags.RateLimit) }

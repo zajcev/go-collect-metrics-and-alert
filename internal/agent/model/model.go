@@ -33,6 +33,9 @@ type Metrics struct {
 	StackSys,
 	Sys,
 	TotalAlloc,
+	TotalMemory,
+	FreeMemory,
+	CPUutilization1,
 	RandomValue float64
 }
 
