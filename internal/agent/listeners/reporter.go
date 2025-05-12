@@ -3,7 +3,10 @@ package listeners
 import (
 	"bytes"
 	"compress/gzip"
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
+	"github.com/zajcev/go-collect-metrics-and-alert/internal/agent/config"
 	"github.com/zajcev/go-collect-metrics-and-alert/internal/agent/model"
 	"github.com/zajcev/go-collect-metrics-and-alert/internal/constants"
 	"github.com/zajcev/go-collect-metrics-and-alert/internal/convert"
@@ -69,7 +72,9 @@ func send(u string, list *[]model.MetricJSON) {
 	request.Header.Add("Content-Encoding", "gzip")
 	request.Header.Add("Accept-Encoding", "gzip")
 	request.Header.Add("Content-Type", "application/json")
-
+	if config.GetHashKey() != "" {
+		request.Header.Set("HashSHA256", calculateSHA256Hash(req, config.GetHashKey()))
+	}
 	resp, errs := retry(client, request, 3)
 	if errs != nil {
 		log.Printf("Error making request: %v", errs)
@@ -103,4 +108,10 @@ func retry(client *http.Client, req *http.Request, count int) (*http.Response, e
 		delay += 2
 	}
 	return nil, res
+}
+
+func calculateSHA256Hash(data []byte, key string) string {
+	signedData := append([]byte(key), data...)
+	hash := sha256.Sum256(signedData)
+	return hex.EncodeToString(hash[:])
 }

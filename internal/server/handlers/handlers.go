@@ -3,6 +3,8 @@ package handlers
 import (
 	"bytes"
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
 	"github.com/go-chi/chi/v5"
 	_ "github.com/lib/pq"
@@ -36,7 +38,7 @@ func UpdateMetricHandler(w http.ResponseWriter, r *http.Request) {
 		if err != nil {
 			w.WriteHeader(http.StatusBadRequest)
 		} else {
-			if *config.GetDBHost() != "" {
+			if config.GetDBHost() != "" {
 				ctx, cancel := context.WithTimeout(r.Context(), 1*time.Second)
 				defer cancel()
 				db.SetValueRaw(ctx, mname, mtype, v)
@@ -50,7 +52,7 @@ func UpdateMetricHandler(w http.ResponseWriter, r *http.Request) {
 		if err != nil {
 			w.WriteHeader(http.StatusBadRequest)
 		} else {
-			if *config.GetDBHost() != "" {
+			if config.GetDBHost() != "" {
 				ctx, cancel := context.WithTimeout(r.Context(), 1*time.Second)
 				defer cancel()
 				db.SetDeltaRaw(ctx, mname, mtype, v)
@@ -77,10 +79,16 @@ func UpdateListMetricsJSON(w http.ResponseWriter, r *http.Request) {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
+		if config.GetHashKey() != "" {
+			if !checkSHA256Hash(buf.Bytes(), config.GetHashKey(), r.Header.Get("HashSHA256")) {
+				http.Error(w, "Mismatch sha256sum", http.StatusBadRequest)
+				return
+			}
+		}
 		if err = json.Unmarshal(buf.Bytes(), &list); err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
-		} else if *config.GetDBHost() != "" {
+		} else if config.GetDBHost() != "" {
 			ctx, cancel := context.WithTimeout(r.Context(), 1*time.Second)
 			defer cancel()
 			db.SetListJSON(ctx, list)
@@ -89,13 +97,20 @@ func UpdateListMetricsJSON(w http.ResponseWriter, r *http.Request) {
 			syncWriter()
 		}
 		resp, err := json.Marshal(&list)
+		if config.GetHashKey() != "" {
+			w.Header().Set("HashSHA256", calculateSHA256Hash(resp, config.GetHashKey()))
+		}
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusOK)
-		w.Write(resp)
+		_, err = w.Write(resp)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
 	} else {
 		w.WriteHeader(http.StatusBadRequest)
 	}
@@ -112,7 +127,7 @@ func UpdateMetricHandlerJSON(w http.ResponseWriter, r *http.Request) {
 		if err = json.Unmarshal(buf.Bytes(), &m); err != nil {
 			http.Error(w, err.Error(), http.StatusBadRequest)
 			return
-		} else if *config.GetDBHost() != "" {
+		} else if config.GetDBHost() != "" {
 			ctx, cancel := context.WithTimeout(r.Context(), 1*time.Second)
 			defer cancel()
 			if m.MType == constants.Gauge {
@@ -145,7 +160,7 @@ func GetMetricHandler(w http.ResponseWriter, r *http.Request) {
 	mname := chi.URLParam(r, "name")
 	mtype := chi.URLParam(r, "type")
 	var value string
-	if *config.GetDBHost() != "" {
+	if config.GetDBHost() != "" {
 		ctx, cancel := context.WithTimeout(r.Context(), 1*time.Second)
 		defer cancel()
 		value = convert.GetString(db.GetMetricRaw(ctx, mname, mtype))
@@ -181,7 +196,7 @@ func GetMetricHandlerJSON(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
-	if *config.GetDBHost() != "" {
+	if config.GetDBHost() != "" {
 		ctx, cancel := context.WithTimeout(r.Context(), 1*time.Second)
 		defer cancel()
 		m, code = db.GetMetricJSON(ctx, m)
@@ -199,7 +214,7 @@ func GetMetricHandlerJSON(w http.ResponseWriter, r *http.Request) {
 }
 
 func GetAllMetrics(w http.ResponseWriter, r *http.Request) {
-	if *config.GetDBHost() != "" {
+	if config.GetDBHost() != "" {
 		ctx, cancel := context.WithTimeout(r.Context(), 2*time.Second)
 		defer cancel()
 		db.GetAllMetrics(ctx, metrics)
@@ -253,8 +268,8 @@ func SaveMetricStorage(file string) {
 }
 
 func syncWriter() {
-	if *config.GetStoreInterval() == 0 && *config.GetDBHost() == "" {
-		SaveMetricStorage(*config.GetFilePath())
+	if config.GetStoreInterval() == 0 && config.GetDBHost() == "" {
+		SaveMetricStorage(config.GetFilePath())
 	}
 }
 
@@ -266,5 +281,21 @@ func DatabaseHandler(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusInternalServerError)
 	} else {
 		w.WriteHeader(http.StatusOK)
+	}
+}
+
+func calculateSHA256Hash(data []byte, key string) string {
+	k := []byte(key)
+	signedData := append(k, data...)
+	hash := sha256.Sum256(signedData)
+	return hex.EncodeToString(hash[:])
+}
+
+func checkSHA256Hash(data []byte, key string, sum string) bool {
+	hash := calculateSHA256Hash(data, key)
+	if hash == sum {
+		return true
+	} else {
+		return false
 	}
 }

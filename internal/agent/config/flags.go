@@ -2,48 +2,43 @@ package config
 
 import (
 	"flag"
-	"fmt"
 	"github.com/caarlos0/env/v11"
+	"github.com/zajcev/go-collect-metrics-and-alert/internal/convert"
+	"log"
 )
 
-type Config struct {
+var flags Flags
+
+type Flags struct {
 	Address        string `env:"ADDRESS"`
 	ReportInterval int    `env:"REPORT_INTERVAL"`
 	PollInterval   int    `env:"POLL_INTERVAL"`
+	HashKey        string `env:"KEY"`
+	RateLimit      int    `env:"RATE_LIMIT"`
 }
 
-func NewParseFlags() (map[string]any, error) {
-	var NewConfig Config
-	if err := env.Parse(&NewConfig); err != nil {
-		return nil, fmt.Errorf("error parsing environment variables: %w", err)
-	}
-	var flagAddress string
-	var flagReportInterval int
-	var flagPollInterval int
-	flag.StringVar(&flagAddress, "a", "localhost:8080", "address and port to run server")
-	flag.IntVar(&flagReportInterval, "r", 2, "interval between report calls")
-	flag.IntVar(&flagPollInterval, "p", 1, "interval between polls")
+func NewConfig() error {
+	flag.StringVar(&flags.Address, "a", "localhost:8080", "address and port to run server")
+	flag.StringVar(&flags.HashKey, "k", "12h5b12b521b", "key for sha256sum")
+	flag.IntVar(&flags.ReportInterval, "r", 1, "interval between report calls")
+	flag.IntVar(&flags.PollInterval, "p", 1, "interval between polls")
+	flag.IntVar(&flags.RateLimit, "l", 2, "request rate limiter")
 	flag.Parse()
-
-	params := map[string]struct {
-		flagValue any
-		envValue  any
-	}{
-		"ADDRESS":         {flagAddress, NewConfig.Address},
-		"REPORT_INTERVAL": {flagReportInterval, NewConfig.ReportInterval},
-		"POLL_INTERVAL":   {flagPollInterval, NewConfig.PollInterval},
+	if err := env.Parse(&flags); err != nil {
+		log.Printf("%+v", err)
+		return err
 	}
-
-	result := make(map[string]any)
-	for k, v := range params {
-		if v.envValue != "" && v.envValue != 0 {
-			result[k] = v.envValue
-		} else {
-			result[k] = v.flagValue
-		}
-	}
-	for k, v := range result {
-		fmt.Printf("Key: %v, Value: %v\n", k, v)
-	}
-	return result, nil
+	return nil
 }
+
+func GetAddress() string {
+	return convert.GetString(&flags.Address)
+}
+func GetReportInterval() uint64 {
+	return convert.GetUint(&flags.ReportInterval)
+}
+func GetPollInterval() uint64 {
+	return convert.GetUint(&flags.PollInterval)
+}
+func GetHashKey() string { return convert.GetString(&flags.HashKey) }
+func GetRateLimit() int  { return convert.GetInt(&flags.RateLimit) }

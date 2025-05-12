@@ -4,23 +4,22 @@ import (
 	"github.com/jasonlvhit/gocron"
 	"github.com/zajcev/go-collect-metrics-and-alert/internal/agent/config"
 	"github.com/zajcev/go-collect-metrics-and-alert/internal/agent/listeners"
-	"github.com/zajcev/go-collect-metrics-and-alert/internal/convert"
 	"log"
 )
 
 func main() {
-	f, err := config.NewParseFlags()
-	var a = convert.GetString(f["ADDRESS"])
-	var pi = convert.GetUint(f["POLL_INTERVAL"])
-	var ri = convert.GetUint(f["REPORT_INTERVAL"])
+	err := config.NewConfig()
+	maxConcurrentCalls := config.GetRateLimit()
+	semaphore := make(chan struct{}, maxConcurrentCalls)
 	if err != nil {
-		log.Fatal(err)
+		log.Fatalf("Error while config initialization: %v", err)
 	}
-
 	scheduler := gocron.NewScheduler()
 	monitorDone := make(chan bool, 1)
 	reporterDone := make(chan bool, 1)
-	err = scheduler.Every(pi).Second().Do(func() {
+	additionalDone := make(chan bool, 1)
+
+	err = scheduler.Every(config.GetPollInterval()).Second().Do(func() {
 		<-monitorDone
 		listeners.NewMonitor()
 		monitorDone <- true
@@ -28,15 +27,26 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
-	err = scheduler.Every(ri).Second().Do(func(url string) {
-		<-reporterDone
+	err = scheduler.Every(config.GetReportInterval()).Second().Do(func(url string) {
+		semaphore <- struct{}{}
+		defer func() {
+			<-semaphore
+		}()
 		listeners.NewReporter(url)
-		reporterDone <- true
-	}, "http://"+a+"/updates/")
+	}, "http://"+config.GetAddress()+"/updates/")
+	if err != nil {
+		log.Fatal(err)
+	}
+	err = scheduler.Every(config.GetPollInterval()).Second().Do(func() {
+		<-additionalDone
+		listeners.AdditionalMetrics()
+		additionalDone <- true
+	})
 	if err != nil {
 		log.Fatal(err)
 	}
 	monitorDone <- true
+	additionalDone <- true
 	reporterDone <- true
 	sc := scheduler.Start()
 	<-sc

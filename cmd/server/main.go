@@ -33,19 +33,19 @@ func main() {
 	if err != nil {
 		log.Printf("Error: %v\n", err)
 	}
-	if *config.GetDBHost() == "" {
-		if *config.GetRestore() {
-			handlers.RestoreMetricStorage(*config.GetFilePath())
+	if config.GetDBHost() == "" {
+		if config.GetRestore() {
+			handlers.RestoreMetricStorage(config.GetFilePath())
 		}
-		if *config.GetStoreInterval() > 0 {
-			go startScheduler(convert.GetUint(*config.GetStoreInterval()), *config.GetFilePath())
+		if config.GetStoreInterval() > 0 {
+			go startScheduler(convert.GetUint(config.GetStoreInterval()), config.GetFilePath())
 		}
 	} else {
 		ctx := context.Background()
-		db.Init(ctx, *config.GetDBHost())
+		db.Init(ctx, config.GetDBHost())
 	}
 
-	log.Fatal(http.ListenAndServe(*config.GetAddress(), Router()))
+	log.Fatal(http.ListenAndServe(config.GetAddress(), Router()))
 }
 
 func startScheduler(interval uint64, filePath string) {
