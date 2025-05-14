@@ -19,7 +19,7 @@ type MemStorage struct {
 
 func NewMetricsStorage() *MemStorage {
 	return &MemStorage{
-		Metrics: make(map[string]Metric),
+		Metrics: make(map[string]Metric, 100),
 	}
 }
 

@@ -26,7 +26,6 @@ func TestGetArticleID(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			//println(test.method, testServer.Listener.Addr().String()+test.target)
 			request, err := http.NewRequest(http.MethodPost, "http://"+testServer.Listener.Addr().String()+test.target, nil)
 			request.Header.Add("Content-Type", "text/plain")
 			if err != nil {

@@ -11,6 +11,7 @@ import (
 	"github.com/zajcev/go-collect-metrics-and-alert/internal/server/middleware"
 	"log"
 	"net/http"
+	_ "net/http/pprof"
 )
 
 func Router() chi.Router {
@@ -29,6 +30,10 @@ func Router() chi.Router {
 }
 
 func main() {
+	go func() {
+		log.Println(http.ListenAndServe("localhost:6060", nil))
+	}()
+
 	err := config.NewConfig()
 	if err != nil {
 		log.Printf("Error: %v\n", err)

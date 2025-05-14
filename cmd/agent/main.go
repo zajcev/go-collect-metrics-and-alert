@@ -1,53 +1,51 @@
 package main
 
 import (
-	"github.com/jasonlvhit/gocron"
+	"context"
+	"fmt"
 	"github.com/zajcev/go-collect-metrics-and-alert/internal/agent/config"
 	"github.com/zajcev/go-collect-metrics-and-alert/internal/agent/listeners"
 	"log"
+	"net/http"
+	_ "net/http/pprof"
+	"os"
 )
 
 func main() {
+	go func() {
+		log.Println(http.ListenAndServe("localhost:5050", nil))
+	}()
+
 	err := config.NewConfig()
-	maxConcurrentCalls := config.GetRateLimit()
-	semaphore := make(chan struct{}, maxConcurrentCalls)
 	if err != nil {
 		log.Fatalf("Error while config initialization: %v", err)
 	}
-	scheduler := gocron.NewScheduler()
-	monitorDone := make(chan bool, 1)
-	reporterDone := make(chan bool, 1)
-	additionalDone := make(chan bool, 1)
 
-	err = scheduler.Every(config.GetPollInterval()).Second().Do(func() {
-		<-monitorDone
-		listeners.NewMonitor()
-		monitorDone <- true
-	})
-	if err != nil {
-		log.Fatal(err)
-	}
-	err = scheduler.Every(config.GetReportInterval()).Second().Do(func(url string) {
-		semaphore <- struct{}{}
-		defer func() {
-			<-semaphore
-		}()
-		listeners.NewReporter(url)
-	}, "http://"+config.GetAddress()+"/updates/")
-	if err != nil {
-		log.Fatal(err)
-	}
-	err = scheduler.Every(config.GetPollInterval()).Second().Do(func() {
-		<-additionalDone
-		listeners.AdditionalMetrics()
-		additionalDone <- true
-	})
-	if err != nil {
-		log.Fatal(err)
-	}
-	monitorDone <- true
-	additionalDone <- true
-	reporterDone <- true
-	sc := scheduler.Start()
-	<-sc
+	errChan := make(chan error, 1)
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	go func() {
+		if err = listeners.NewMonitor(ctx, config.GetPollInterval()); err != nil {
+			errChan <- fmt.Errorf("accrual integration failed: %w", err)
+		}
+	}()
+
+	go func() {
+		if err = listeners.NewReporter(ctx, config.GetReportInterval(), "http://"+config.GetAddress()+"/updates/"); err != nil {
+			errChan <- fmt.Errorf("HTTP server failed: %w", err)
+		}
+	}()
+
+	go func() {
+		if err = listeners.AdditionalMetrics(ctx, config.GetPollInterval()); err != nil {
+			errChan <- fmt.Errorf("HTTP server failed: %w", err)
+		}
+	}()
+
+	err = <-errChan
+	log.Printf("Fatal error: %v", err)
+	cancel()
+	os.Exit(1)
+
 }

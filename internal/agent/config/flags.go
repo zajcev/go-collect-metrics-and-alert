@@ -34,11 +34,11 @@ func NewConfig() error {
 func GetAddress() string {
 	return convert.GetString(&flags.Address)
 }
-func GetReportInterval() uint64 {
-	return convert.GetUint(&flags.ReportInterval)
+func GetReportInterval() int {
+	return flags.ReportInterval
 }
-func GetPollInterval() uint64 {
-	return convert.GetUint(&flags.PollInterval)
+func GetPollInterval() int {
+	return flags.PollInterval
 }
 func GetHashKey() string { return convert.GetString(&flags.HashKey) }
-func GetRateLimit() int  { return convert.GetInt(&flags.RateLimit) }
+func GetRateLimit() int  { return flags.RateLimit }

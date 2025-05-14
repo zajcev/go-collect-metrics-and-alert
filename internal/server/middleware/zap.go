@@ -1,8 +1,11 @@
 package middleware
 
 import (
+	"fmt"
 	"go.uber.org/zap"
+	"go.uber.org/zap/zapcore"
 	"net/http"
+	"sync"
 	"time"
 )
 
@@ -12,25 +15,47 @@ type data struct {
 	contentLen int
 }
 
+var (
+	logger     *zap.Logger
+	loggerOnce sync.Once
+)
+
+func initLogger() {
+	cfg := zap.NewProductionConfig()
+	cfg.Sampling = nil
+	cfg.OutputPaths = []string{"stdout"}
+
+	cfg.EncoderConfig = zapcore.EncoderConfig{
+		TimeKey:       "ts",
+		LevelKey:      "level",
+		MessageKey:    "msg",
+		EncodeLevel:   zapcore.LowercaseLevelEncoder,
+		EncodeTime:    zapcore.EpochTimeEncoder,
+		StacktraceKey: "",
+	}
+
+	var err error
+	logger, err = cfg.Build()
+	if err != nil {
+		panic(fmt.Sprintf("failed to initialize logger: %v", err))
+	}
+}
+
 func ZapMiddleware(wrappedHandler http.Handler) http.Handler {
+	loggerOnce.Do(initLogger)
+
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		now := time.Now()
-		logger, err := zap.NewProduction()
-		defer logger.Sync()
-		if err != nil {
-			logger.Fatal(err.Error())
-			return
-		}
 		logger.Info("Request data",
 			zap.String("uri", r.RequestURI),
 			zap.String("method", r.Method),
-			zap.Duration("duration", time.Since(now)))
+		)
 		rw := newLoggingResponseWriter(w)
 		wrappedHandler.ServeHTTP(rw, r)
-		logger.Info(
-			"Response data",
+		logger.Info("Response data",
 			zap.Int("statusCode", rw.statusCode),
 			zap.Int("contentLen", rw.contentLen),
+			zap.Duration("duration", time.Since(now)),
 		)
 	})
 }
