@@ -37,11 +37,11 @@ func TestRetryFailure(t *testing.T) {
 	req.URL, _ = url.Parse(ts.URL)
 
 	resp, err := retry(client, req, 3)
-	defer resp.Body.Close()
 	if err == nil {
 		t.Fatalf("Expected error, got none")
 	}
 	if resp != nil {
 		t.Fatalf("Expected nil response, got %v", resp)
 	}
+	defer resp.Body.Close()
 }
