@@ -37,6 +37,7 @@ func TestRetryFailure(t *testing.T) {
 	req.URL, _ = url.Parse(ts.URL)
 
 	resp, err := retry(client, req, 3)
+	defer resp.Body.Close()
 	if err == nil {
 		t.Fatalf("Expected error, got none")
 	}
