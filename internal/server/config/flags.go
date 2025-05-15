@@ -2,9 +2,10 @@ package config
 
 import (
 	"flag"
+	"log"
+
 	"github.com/caarlos0/env/v11"
 	"github.com/zajcev/go-collect-metrics-and-alert/internal/convert"
-	"log"
 )
 
 var flags Flags

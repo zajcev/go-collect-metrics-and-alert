@@ -7,16 +7,17 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
-	"github.com/zajcev/go-collect-metrics-and-alert/internal/agent/config"
-	"github.com/zajcev/go-collect-metrics-and-alert/internal/agent/model"
-	"github.com/zajcev/go-collect-metrics-and-alert/internal/constants"
-	"github.com/zajcev/go-collect-metrics-and-alert/internal/convert"
 	"io"
 	"log"
 	"net/http"
 	"net/url"
 	"reflect"
 	"time"
+
+	"github.com/zajcev/go-collect-metrics-and-alert/internal/agent/config"
+	"github.com/zajcev/go-collect-metrics-and-alert/internal/agent/model"
+	"github.com/zajcev/go-collect-metrics-and-alert/internal/constants"
+	"github.com/zajcev/go-collect-metrics-and-alert/internal/convert"
 )
 
 var MemStorage model.Metrics

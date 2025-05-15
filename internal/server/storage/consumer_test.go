@@ -2,9 +2,10 @@ package storage
 
 import (
 	"encoding/json"
-	"github.com/zajcev/go-collect-metrics-and-alert/internal/server/models"
 	"os"
 	"testing"
+
+	"github.com/zajcev/go-collect-metrics-and-alert/internal/server/models"
 )
 
 func TestNewConsumer(t *testing.T) {

@@ -2,6 +2,10 @@ package main
 
 import (
 	"context"
+	"log"
+	"net/http"
+	_ "net/http/pprof"
+
 	"github.com/go-chi/chi/v5"
 	"github.com/jasonlvhit/gocron"
 	"github.com/zajcev/go-collect-metrics-and-alert/internal/convert"
@@ -9,9 +13,6 @@ import (
 	"github.com/zajcev/go-collect-metrics-and-alert/internal/server/db"
 	"github.com/zajcev/go-collect-metrics-and-alert/internal/server/handlers"
 	"github.com/zajcev/go-collect-metrics-and-alert/internal/server/middleware"
-	"log"
-	"net/http"
-	_ "net/http/pprof"
 )
 
 func Router() chi.Router {

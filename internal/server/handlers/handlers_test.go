@@ -4,11 +4,12 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
-	"github.com/zajcev/go-collect-metrics-and-alert/internal/server/models"
 	"math/rand"
 	"net/http"
 	"net/http/httptest"
 	"testing"
+
+	"github.com/zajcev/go-collect-metrics-and-alert/internal/server/models"
 )
 
 func TestUpdateListMetricsJSON(t *testing.T) {

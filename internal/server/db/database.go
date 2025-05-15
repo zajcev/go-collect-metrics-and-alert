@@ -5,6 +5,11 @@ import (
 	"database/sql"
 	_ "embed"
 	"errors"
+	"log"
+	"net/http"
+	"os"
+	"path/filepath"
+
 	"github.com/golang-migrate/migrate/v4"
 	"github.com/golang-migrate/migrate/v4/database/postgres"
 	_ "github.com/golang-migrate/migrate/v4/source/file"
@@ -12,10 +17,6 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/zajcev/go-collect-metrics-and-alert/internal/constants"
 	"github.com/zajcev/go-collect-metrics-and-alert/internal/server/models"
-	"log"
-	"net/http"
-	"os"
-	"path/filepath"
 )
 
 var db *pgxpool.Pool

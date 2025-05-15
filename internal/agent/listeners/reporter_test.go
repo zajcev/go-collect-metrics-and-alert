@@ -6,12 +6,13 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"github.com/zajcev/go-collect-metrics-and-alert/internal/agent/model"
 	"math/rand"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
 	"testing"
+
+	"github.com/zajcev/go-collect-metrics-and-alert/internal/agent/model"
 )
 
 func TestCalculateSHA256Hash(t *testing.T) {

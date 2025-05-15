@@ -2,8 +2,9 @@ package storage
 
 import (
 	"encoding/json"
-	"github.com/zajcev/go-collect-metrics-and-alert/internal/server/models"
 	"os"
+
+	"github.com/zajcev/go-collect-metrics-and-alert/internal/server/models"
 )
 
 type Producer struct {

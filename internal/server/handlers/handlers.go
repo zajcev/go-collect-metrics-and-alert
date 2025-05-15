@@ -6,6 +6,12 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
+	"html/template"
+	"log"
+	"net/http"
+	"strconv"
+	"time"
+
 	"github.com/go-chi/chi/v5"
 	_ "github.com/lib/pq"
 	"github.com/zajcev/go-collect-metrics-and-alert/internal/constants"
@@ -14,11 +20,6 @@ import (
 	"github.com/zajcev/go-collect-metrics-and-alert/internal/server/db"
 	"github.com/zajcev/go-collect-metrics-and-alert/internal/server/models"
 	"github.com/zajcev/go-collect-metrics-and-alert/internal/server/storage"
-	"html/template"
-	"log"
-	"net/http"
-	"strconv"
-	"time"
 )
 
 var metrics = models.NewMetricsStorage()

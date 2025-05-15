@@ -1,9 +1,10 @@
 package models
 
 import (
+	"net/http"
+
 	"github.com/zajcev/go-collect-metrics-and-alert/internal/constants"
 	"github.com/zajcev/go-collect-metrics-and-alert/internal/convert"
-	"net/http"
 )
 
 type Metric struct {

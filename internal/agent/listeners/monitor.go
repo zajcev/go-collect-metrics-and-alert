@@ -2,15 +2,16 @@ package listeners
 
 import (
 	"context"
-	"github.com/shirou/gopsutil/v3/cpu"
-	"github.com/shirou/gopsutil/v3/mem"
-	"github.com/zajcev/go-collect-metrics-and-alert/internal/agent/model"
-	"github.com/zajcev/go-collect-metrics-and-alert/internal/convert"
 	"log"
 	"math/rand"
 	"reflect"
 	"runtime"
 	"time"
+
+	"github.com/shirou/gopsutil/v3/cpu"
+	"github.com/shirou/gopsutil/v3/mem"
+	"github.com/zajcev/go-collect-metrics-and-alert/internal/agent/model"
+	"github.com/zajcev/go-collect-metrics-and-alert/internal/convert"
 )
 
 var counter = int64(0)
