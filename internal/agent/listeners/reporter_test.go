@@ -1,6 +1,13 @@
 package listeners
 
 import (
+	"bytes"
+	"compress/gzip"
+	"context"
+	"encoding/json"
+	"fmt"
+	"github.com/zajcev/go-collect-metrics-and-alert/internal/agent/model"
+	"math/rand"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -41,7 +48,83 @@ func TestRetryFailure(t *testing.T) {
 		t.Fatalf("Expected error, got none")
 	}
 	if resp != nil {
+		resp.Body.Close()
 		t.Fatalf("Expected nil response, got %v", resp)
 	}
-	defer resp.Body.Close()
+
+}
+
+func TestNewReporter(t *testing.T) {
+	ctx, cancel := context.WithTimeout(context.Background(), 3)
+	defer cancel()
+	NewReporter(ctx, 2, "http://localhost:8080/update")
+}
+
+func BenchmarkSend(b *testing.B) {
+	listSizes := []int{10, 100, 500, 1000, 5000}
+
+	for _, size := range listSizes {
+		b.Run(fmt.Sprintf("size_%d", size), func(b *testing.B) {
+			list := generateRandomMetrics(size)
+			testServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				resp, err := json.Marshal(list)
+				if err != nil {
+					w.WriteHeader(http.StatusInternalServerError)
+					return
+				}
+				var buf bytes.Buffer
+				gz := gzip.NewWriter(&buf)
+				if _, err := gz.Write(resp); err != nil {
+					w.WriteHeader(http.StatusInternalServerError)
+					return
+				}
+				if err := gz.Close(); err != nil {
+					w.WriteHeader(http.StatusInternalServerError)
+					return
+				}
+				w.Header().Set("Content-Encoding", "gzip")
+				w.Header().Set("Content-Type", "application/json")
+				w.WriteHeader(http.StatusOK)
+				w.Write(buf.Bytes())
+			}))
+			defer testServer.Close()
+
+			b.ResetTimer()
+			for i := 0; i < b.N; i++ {
+				send(testServer.URL, &list)
+			}
+		})
+	}
+}
+
+func generateRandomMetrics(count int) []model.MetricJSON {
+	list := make([]model.MetricJSON, 0, count)
+
+	metricNames := []string{
+		"Alloc", "BuckHashSys", "Frees", "GCCPUFraction", "GCSys",
+		"HeapAlloc", "HeapIdle", "HeapInuse", "HeapObjects", "HeapReleased",
+		"HeapSys", "LastGC", "Lookups", "MCacheInuse", "MCacheSys",
+		"MSpanInuse", "MSpanSys", "Mallocs", "NextGC", "NumForcedGC",
+		"NumGC", "OtherSys", "PauseTotalNs", "StackInuse", "StackSys",
+		"Sys", "TotalAlloc", "RandomValue",
+	}
+
+	for i := 0; i < count; i++ {
+		var metric model.MetricJSON
+		metric.ID = metricNames[rand.Intn(len(metricNames))]
+
+		if rand.Intn(2) == 0 {
+			metric.MType = "gauge"
+			val := rand.Float64() * 1000
+			metric.Value = &val
+		} else {
+			metric.MType = "counter"
+			delta := rand.Int63n(1000)
+			metric.Delta = &delta
+		}
+
+		list = append(list, metric)
+	}
+
+	return list
 }

@@ -71,3 +71,29 @@ func TestAdditionalMetrics(t *testing.T) {
 		t.Error("CPUutilization1 should not be nil after AdditionalMetrics execution")
 	}
 }
+func Test_monitor(t *testing.T) {
+	tests := []struct {
+		name    string
+		metric  model.Metrics
+		wantErr bool
+	}{
+		{
+			name:    "test",
+			metric:  model.Metrics{},
+			wantErr: false,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			ctx, cancel := context.WithTimeout(context.Background(), 3)
+			defer cancel()
+			NewMonitor(ctx, 2)
+		})
+	}
+}
+
+func BenchmarkMonitor(*testing.B) {
+	ctx, cancel := context.WithTimeout(context.Background(), 3)
+	defer cancel()
+	NewMonitor(ctx, 2)
+}

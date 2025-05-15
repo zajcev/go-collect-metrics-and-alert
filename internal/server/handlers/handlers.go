@@ -115,6 +115,7 @@ func UpdateListMetricsJSON(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusBadRequest)
 	}
 }
+
 func UpdateMetricHandlerJSON(w http.ResponseWriter, r *http.Request) {
 	if r.Header.Get("Content-Type") == "application/json" {
 		var m models.Metric
