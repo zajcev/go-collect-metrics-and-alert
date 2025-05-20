@@ -1,3 +1,5 @@
+// package listeners implement collector and reporter for the agent.
+
 package listeners
 
 import (
@@ -16,6 +18,8 @@ import (
 
 var counter = int64(0)
 
+// NewMonitor start scraping metrics from runtime.MemStats with interval.
+// Func variable interval defines the frequency of scraping.
 func NewMonitor(ctx context.Context, interval int) error {
 	duration := time.Duration(interval) * time.Second
 	ticker := time.NewTicker(duration)
@@ -48,6 +52,8 @@ func addCustomMetric() {
 	}
 }
 
+// AdditionalMetrics start scraping metrics for monitoring Memory and CPU utilization
+// Func variable interval defines the frequency of scraping.
 func AdditionalMetrics(ctx context.Context, interval int) error {
 	duration := time.Duration(interval) * time.Second
 	ticker := time.NewTicker(duration)

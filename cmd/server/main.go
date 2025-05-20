@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"github.com/zajcev/go-collect-metrics-and-alert/internal/server/models"
 	"log"
 	"net/http"
 	_ "net/http/pprof"
@@ -15,17 +16,17 @@ import (
 	"github.com/zajcev/go-collect-metrics-and-alert/internal/server/middleware"
 )
 
-func Router() chi.Router {
+func router(mertics *models.MemStorage) chi.Router {
 	r := chi.NewRouter()
 	r.Use(middleware.GzipMiddleware)
 	r.Use(middleware.ZapMiddleware)
-	r.Post("/update/{type}/{name}/{value}", handlers.UpdateMetricHandler)
-	r.Post("/update/", handlers.UpdateMetricHandlerJSON)
-	r.Post("/updates/", handlers.UpdateListMetricsJSON)
-	r.Post("/value/", handlers.GetMetricHandlerJSON)
-	r.Get("/value/{type}/{name}", handlers.GetMetricHandler)
-	r.Get("/", handlers.GetAllMetrics)
-	r.Get("/json", handlers.GetAllMetricsJSON)
+	r.Post("/update/{type}/{name}/{value}", handlers.UpdateMetricHandler(mertics))
+	r.Post("/update/", handlers.UpdateMetricHandlerJSON(mertics))
+	r.Post("/updates/", handlers.UpdateListMetricsJSON(mertics))
+	r.Post("/value/", handlers.GetMetricHandlerJSON(mertics))
+	r.Get("/value/{type}/{name}", handlers.GetMetricHandler(mertics))
+	r.Get("/", handlers.GetAllMetrics(mertics))
+	r.Get("/json", handlers.GetAllMetricsJSON(mertics))
 	r.Get("/ping", handlers.DatabaseHandler)
 	return r
 }
@@ -34,6 +35,7 @@ func main() {
 	go func() {
 		log.Println(http.ListenAndServe("localhost:6060", nil))
 	}()
+	storage := models.NewMetricsStorage()
 
 	err := config.NewConfig()
 	if err != nil {
@@ -41,7 +43,7 @@ func main() {
 	}
 	if config.GetDBHost() == "" {
 		if config.GetRestore() {
-			handlers.RestoreMetricStorage(config.GetFilePath())
+			storage = handlers.RestoreMetricStorage(config.GetFilePath())
 		}
 		if config.GetStoreInterval() > 0 {
 			go startScheduler(convert.GetUint(config.GetStoreInterval()), config.GetFilePath())
@@ -51,7 +53,7 @@ func main() {
 		db.Init(ctx, config.GetDBHost())
 	}
 
-	log.Fatal(http.ListenAndServe(config.GetAddress(), Router()))
+	log.Fatal(http.ListenAndServe(config.GetAddress(), router(storage)))
 }
 
 func startScheduler(interval uint64, filePath string) {

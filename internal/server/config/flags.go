@@ -19,6 +19,7 @@ type Flags struct {
 	HashKey       string `env:"KEY"`
 }
 
+// NewConfig parses the command-line flags and environment variables.
 func NewConfig() error {
 	flag.StringVar(&flags.Address, "a", "localhost:8080", "address and port to run server")
 	flag.StringVar(&flags.HashKey, "k", "", "key for sha256sum")
@@ -34,21 +35,28 @@ func NewConfig() error {
 	return nil
 }
 
+// GetAddress returns the address and port to run the server.
 func GetAddress() string { return convert.GetString(&flags.Address) }
 
+// GetStoreInterval returns the interval between stored files.
 func GetStoreInterval() uint64 {
 	return convert.GetUint(&flags.StoreInterval)
 }
+
+// GetFilePath returns the path to store files.
 func GetFilePath() string {
 	return convert.GetString(&flags.FilePath)
 }
 
+// GetRestore returns the flag to restore files.
 func GetRestore() bool { return convert.GetBool(&flags.Restore) }
 
+// GetDBHost returns the database host.
 func GetDBHost() string {
 	return convert.GetString(&flags.DBHost)
 }
 
+// GetHashKey returns the key for sha256sum.
 func GetHashKey() string {
 	return convert.GetString(&flags.HashKey)
 }

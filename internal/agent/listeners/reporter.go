@@ -22,6 +22,9 @@ import (
 
 var MemStorage model.Metrics
 
+// NewReporter send metrics to the server with an interval.
+// Func variable interval defines the frequency of sending.
+// Func variable u defines the url of the server.
 func NewReporter(ctx context.Context, interval int, u string) error {
 	mt := reflect.TypeOf(MemStorage)
 	duration := time.Duration(interval) * time.Second

@@ -24,6 +24,7 @@ var db *pgxpool.Pool
 //go:embed scripts/000001_test.up.sql
 var file string
 
+// Init initializes database connection
 func Init(ctx context.Context, DBUrl string) {
 	d, err := pgxpool.New(ctx, DBUrl)
 	if err != nil {
@@ -33,6 +34,7 @@ func Init(ctx context.Context, DBUrl string) {
 	migration(DBUrl)
 }
 
+// migration executes database migration
 func migration(DBUrl string) {
 	wd, _ := os.Getwd()
 	filePath := filepath.Join(wd, "internal/server/db/scripts/")
@@ -48,10 +50,12 @@ func migration(DBUrl string) {
 	}
 }
 
+// Ping checks database connection
 func Ping(ctx context.Context) error {
 	return db.Ping(ctx)
 }
 
+// GetMetricRaw returns metric value from database
 func GetMetricRaw(ctx context.Context, mname string, mtype string) interface{} {
 	var value interface{}
 	if mtype == constants.Gauge {
@@ -81,6 +85,7 @@ func GetMetricRaw(ctx context.Context, mname string, mtype string) interface{} {
 	return nil
 }
 
+// GetMetricJSON returns models.Metric for response in JSON format
 func GetMetricJSON(ctx context.Context, m models.Metric) (models.Metric, int) {
 	row, _ := db.Query(ctx, getMetric, m.ID, m.MType)
 	if row.Err() != nil {
@@ -94,6 +99,7 @@ func GetMetricJSON(ctx context.Context, m models.Metric) (models.Metric, int) {
 	return models.Metric{}, http.StatusNotFound
 }
 
+// SetDeltaRaw sets value for metric type Gauge in a database by raw value
 func SetDeltaRaw(ctx context.Context, mname string, mtype string, delta int64) {
 	_, err := db.Exec(ctx, insertDelta, mname, mtype, delta)
 	if err != nil {
@@ -106,6 +112,7 @@ func SetDeltaRaw(ctx context.Context, mname string, mtype string, delta int64) {
 	}
 }
 
+// SetValueRaw sets value for metric type Counter in a database by raw value
 func SetValueRaw(ctx context.Context, mname string, mtype string, value float64) {
 	_, err := db.Exec(ctx, insertValue, mname, mtype, value)
 	if err != nil {
@@ -118,6 +125,7 @@ func SetValueRaw(ctx context.Context, mname string, mtype string, value float64)
 	}
 }
 
+// SetDeltaJSON sets value for metric type Gauge in a database by JSON value
 func SetDeltaJSON(ctx context.Context, m models.Metric) {
 	_, err := db.Exec(ctx, insertDelta, m.ID, m.MType, m.Delta)
 	if err != nil {
@@ -130,6 +138,7 @@ func SetDeltaJSON(ctx context.Context, m models.Metric) {
 	}
 }
 
+// SetValueJSON sets value for metric type Counter in a database by JSON value
 func SetValueJSON(ctx context.Context, m models.Metric) {
 	_, err := db.Exec(ctx, insertValue, m.ID, m.MType, m.Value)
 	if err != nil {
@@ -142,6 +151,7 @@ func SetValueJSON(ctx context.Context, m models.Metric) {
 	}
 }
 
+// SetListJSON sets list of metrics in a database by metric list of JSON values
 func SetListJSON(ctx context.Context, list []models.Metric) {
 	tx, err := db.Begin(ctx)
 	if err != nil {
@@ -167,6 +177,7 @@ func SetListJSON(ctx context.Context, list []models.Metric) {
 	}
 }
 
+// GetAllMetrics returns all metrics from database
 func GetAllMetrics(ctx context.Context, ms *models.MemStorage) {
 	list := []models.Metric{}
 	row := models.Metric{}

@@ -18,6 +18,7 @@ type Flags struct {
 	RateLimit      int    `env:"RATE_LIMIT"`
 }
 
+// NewConfig parses the command-line flags and environment variables.
 func NewConfig() error {
 	flag.StringVar(&flags.Address, "a", "localhost:8080", "address and port to run server")
 	flag.StringVar(&flags.HashKey, "k", "12h5b12b521b", "key for sha256sum")
@@ -32,14 +33,23 @@ func NewConfig() error {
 	return nil
 }
 
+// GetAddress returns the address and port to run the server.
 func GetAddress() string {
 	return convert.GetString(&flags.Address)
 }
+
+// GetReportInterval returns the interval between report calls.
 func GetReportInterval() int {
 	return flags.ReportInterval
 }
+
+// GetPollInterval returns the interval between polls.
 func GetPollInterval() int {
 	return flags.PollInterval
 }
+
+// GetHashKey returns the key for sha256sum.
 func GetHashKey() string { return convert.GetString(&flags.HashKey) }
-func GetRateLimit() int  { return flags.RateLimit }
+
+// GetRateLimit returns interval for Reporter
+func GetRateLimit() int { return flags.RateLimit }

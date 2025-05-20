@@ -12,6 +12,7 @@ type Producer struct {
 	encoder *json.Encoder
 }
 
+// NewProducer creates a open file and returns producer instance
 func NewProducer(fileName string) (*Producer, error) {
 	file, err := os.OpenFile(fileName, os.O_WRONLY|os.O_CREATE, 0666)
 	if err != nil {
@@ -24,6 +25,7 @@ func NewProducer(fileName string) (*Producer, error) {
 	}, nil
 }
 
+// WriteMetrics writes metrics to file
 func (p *Producer) WriteMetrics(metrics *models.MemStorage) error {
 	return p.encoder.Encode(metrics)
 }
