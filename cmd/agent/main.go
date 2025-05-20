@@ -28,7 +28,7 @@ func main() {
 
 	go func() {
 		if err = listeners.NewMonitor(ctx, config.GetPollInterval()); err != nil {
-			errChan <- fmt.Errorf("accrual integration failed: %w", err)
+			errChan <- fmt.Errorf("monitor start failed: %w", err)
 		}
 	}()
 
