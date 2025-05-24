@@ -78,7 +78,10 @@ func GetMetricRaw(ctx context.Context, mname string, mtype string) interface{} {
 		}
 		defer row.Close()
 		if row.Next() {
-			row.Scan(&value)
+			err := row.Scan(&value)
+			if err != nil {
+				return nil
+			}
 			return value
 		}
 	}
@@ -93,7 +96,10 @@ func GetMetricJSON(ctx context.Context, m models.Metric) (models.Metric, int) {
 	}
 	defer row.Close()
 	if row.Next() {
-		row.Scan(&m.ID, &m.MType, &m.Delta, &m.Value)
+		err := row.Scan(&m.ID, &m.MType, &m.Delta, &m.Value)
+		if err != nil {
+			return models.Metric{}, http.StatusInternalServerError
+		}
 		return m, http.StatusOK
 	}
 	return models.Metric{}, http.StatusNotFound
@@ -193,5 +199,5 @@ func GetAllMetrics(ctx context.Context, ms *models.MemStorage) {
 		}
 		list = append(list, row)
 	}
-	ms.SetMetricList(list)
+	ms.SetListJSON(list)
 }

@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"github.com/zajcev/go-collect-metrics-and-alert/internal/server/models"
 	"io"
+	"log"
 	"math/rand"
 	"net/http"
 	"net/http/httptest"
@@ -16,8 +17,8 @@ func TestUpdateListMetricsJSON(t *testing.T) {
 	testMemStorage := models.NewMetricsStorage()
 	tests := []struct {
 		name       string
-		body       []byte
 		hashSHA256 string
+		body       []byte
 		wantCode   int
 	}{
 		{
@@ -232,8 +233,8 @@ func ExampleGetAllMetricsJSON() {
 	testMemStorage := models.NewMetricsStorage()
 	delta := int64(42)
 	value := 3.14
-	testMemStorage.SetGauge("testGauge", "gauge", value)
-	testMemStorage.SetCounter("testCounter", "counter", delta)
+	testMemStorage.SetDeltaRaw("testGauge", "gauge", value)
+	testMemStorage.SetValueRaw("testCounter", "counter", delta)
 
 	req := httptest.NewRequest("GET", "/json/all", nil)
 	w := httptest.NewRecorder()
@@ -242,12 +243,20 @@ func ExampleGetAllMetricsJSON() {
 	handler(w, req)
 
 	resp := w.Result()
-	defer resp.Body.Close()
+	defer func(Body io.ReadCloser) {
+		err := Body.Close()
+		if err != nil {
+			fmt.Println(err)
+		}
+	}(resp.Body)
 
 	body, _ := io.ReadAll(resp.Body)
 
 	var prettyJSON bytes.Buffer
-	json.Indent(&prettyJSON, body, "", "  ")
+	err := json.Indent(&prettyJSON, body, "", "  ")
+	if err != nil {
+		log.Fatalf("Error while formating json : %v", err)
+	}
 	fmt.Println(prettyJSON.String())
 
 	// Output:
@@ -270,7 +279,7 @@ func ExampleGetAllMetricsJSON() {
 func ExampleGetMetricHandlerJSON() {
 	testMemStorage := models.NewMetricsStorage()
 	value := 3.14
-	testMemStorage.SetGauge("testGauge", "gauge", value)
+	testMemStorage.SetDeltaRaw("testGauge", "gauge", value)
 
 	jsonBody := `{"id":"testGauge", "type": "gauge"}`
 	reqBody := bytes.NewReader([]byte(jsonBody))
@@ -283,12 +292,17 @@ func ExampleGetMetricHandlerJSON() {
 	handler(w, req)
 
 	resp := w.Result()
-	defer resp.Body.Close()
-
+	err := w.Result().Body.Close()
+	if err != nil {
+		log.Fatalf("Error while close result body: %v", err)
+	}
 	body, _ := io.ReadAll(resp.Body)
 
 	var prettyJSON bytes.Buffer
-	json.Indent(&prettyJSON, body, "", "  ")
+	err = json.Indent(&prettyJSON, body, "", "  ")
+	if err != nil {
+		log.Fatalf("Error while formating json : %v", err)
+	}
 	fmt.Println(prettyJSON.String())
 
 	// Output:

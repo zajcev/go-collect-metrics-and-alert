@@ -95,15 +95,27 @@ func send(u string, list *[]model.MetricJSON) {
 		log.Printf("Error making request: %v", errs)
 		return
 	}
-	defer resp.Body.Close()
+	defer func() {
+		if err = resp.Body.Close(); err != nil {
+			log.Printf("failed to close response body: %v", err)
+		}
+	}()
 
 	gzReader, err := gzip.NewReader(resp.Body)
 	if err != nil {
 		log.Fatalf("Error creating gzip reader: %v", err)
 	}
-	defer gzReader.Close()
+	defer func(gzReader *gzip.Reader) {
+		err = gzReader.Close()
+		if err != nil {
+			log.Fatalf("Error closing gzip reader: %v", err)
+		}
+	}(gzReader)
 
-	io.ReadAll(gzReader)
+	_, err = io.ReadAll(gzReader)
+	if err != nil {
+		log.Fatalf("Error reading gzip: %v", err)
+	}
 	if err != nil {
 		log.Fatalf("Error reading response body: %v", err)
 	}

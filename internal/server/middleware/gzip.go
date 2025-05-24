@@ -99,7 +99,11 @@ func GzipMiddleware(h http.Handler) http.Handler {
 				return
 			}
 			r.Body = cr
-			defer cr.Close()
+			defer func() {
+				if err = cr.Close(); err != nil {
+					http.Error(w, err.Error(), http.StatusInternalServerError)
+				}
+			}()
 		}
 
 		// Response
@@ -107,7 +111,11 @@ func GzipMiddleware(h http.Handler) http.Handler {
 		supportsGzip := strings.Contains(acceptEncoding, "gzip")
 		if supportsGzip {
 			cw := newCompressWriter(w)
-			defer cw.Close()
+			defer func() {
+				if err := cw.Close(); err != nil {
+					http.Error(w, err.Error(), http.StatusInternalServerError)
+				}
+			}()
 			rw := &responseWriter{ResponseWriter: w, compressWriter: cw}
 			h.ServeHTTP(rw, r)
 		} else {
