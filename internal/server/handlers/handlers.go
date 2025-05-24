@@ -6,6 +6,12 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
+	"html/template"
+	"log"
+	"net/http"
+	"strconv"
+	"time"
+
 	"github.com/go-chi/chi/v5"
 	_ "github.com/lib/pq"
 	"github.com/zajcev/go-collect-metrics-and-alert/internal/constants"
@@ -14,111 +20,189 @@ import (
 	"github.com/zajcev/go-collect-metrics-and-alert/internal/server/db"
 	"github.com/zajcev/go-collect-metrics-and-alert/internal/server/models"
 	"github.com/zajcev/go-collect-metrics-and-alert/internal/server/storage"
-	"html/template"
-	"log"
-	"net/http"
-	"strconv"
-	"time"
 )
 
-var metrics = models.NewMetricsStorage()
+// var metrics = models.NewMetricsStorage()
 var htmlTemplate = `{{ range $key, $value := .Metrics}}
    <tr>Name: {{ $key }} Type: {{ .MType }} Value: {{if .Delta}}{{.Delta}}{{end}} {{if .Value}}{{.Value}}{{end}}</tr><br/>
 {{ end }}`
 
-func UpdateMetricHandler(w http.ResponseWriter, r *http.Request) {
-	if r.Method != "POST" {
-		w.WriteHeader(http.StatusMethodNotAllowed)
-	}
-	mname := chi.URLParam(r, "name")
-	mtype := chi.URLParam(r, "type")
-	mvalue := chi.URLParam(r, "value")
-	if mtype == constants.Gauge {
-		v, err := strconv.ParseFloat(mvalue, 64)
-		if err != nil {
-			w.WriteHeader(http.StatusBadRequest)
-		} else {
-			if config.GetDBHost() != "" {
-				ctx, cancel := context.WithTimeout(r.Context(), 1*time.Second)
-				defer cancel()
-				db.SetValueRaw(ctx, mname, mtype, v)
-			} else {
-				metrics.SetGauge(mname, mtype, v)
-				syncWriter()
-			}
+// UpdateMetricHandler add or update metric value by raw value parsed from URI
+func UpdateMetricHandler(metrics *models.MemStorage) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != "POST" {
+			w.WriteHeader(http.StatusMethodNotAllowed)
 		}
-	} else if mtype == constants.Counter {
-		v, err := strconv.ParseInt(mvalue, 10, 64)
-		if err != nil {
-			w.WriteHeader(http.StatusBadRequest)
-		} else {
-			if config.GetDBHost() != "" {
-				ctx, cancel := context.WithTimeout(r.Context(), 1*time.Second)
-				defer cancel()
-				db.SetDeltaRaw(ctx, mname, mtype, v)
+		mname := chi.URLParam(r, "name")
+		mtype := chi.URLParam(r, "type")
+		mvalue := chi.URLParam(r, "value")
+		if mtype == constants.Gauge {
+			v, err := strconv.ParseFloat(mvalue, 64)
+			if err != nil {
+				w.WriteHeader(http.StatusBadRequest)
 			} else {
-				metrics.SetCounter(mname, mtype, v)
-				syncWriter()
+				if config.GetDBHost() != "" {
+					ctx, cancel := context.WithTimeout(r.Context(), 1*time.Second)
+					defer cancel()
+					db.SetValueRaw(ctx, mname, mtype, v)
+				} else {
+					metrics.SetGauge(mname, mtype, v)
+					syncWriter(metrics)
+				}
 			}
+		} else if mtype == constants.Counter {
+			v, err := strconv.ParseInt(mvalue, 10, 64)
+			if err != nil {
+				w.WriteHeader(http.StatusBadRequest)
+			} else {
+				if config.GetDBHost() != "" {
+					ctx, cancel := context.WithTimeout(r.Context(), 1*time.Second)
+					defer cancel()
+					db.SetDeltaRaw(ctx, mname, mtype, v)
+				} else {
+					metrics.SetCounter(mname, mtype, v)
+					syncWriter(metrics)
+				}
+			}
+		} else {
+			w.WriteHeader(http.StatusBadRequest)
 		}
-	} else {
-		w.WriteHeader(http.StatusBadRequest)
-	}
-	err := r.Body.Close()
-	if err != nil {
-		log.Fatalf("Error while close body: %v", err)
+		err := r.Body.Close()
+		if err != nil {
+			log.Fatalf("Error while close body: %v", err)
+		}
 	}
 }
 
-func UpdateListMetricsJSON(w http.ResponseWriter, r *http.Request) {
-	if r.Header.Get("Content-Type") == "application/json" {
-		var list []models.Metric
-		var buf bytes.Buffer
-		_, err := buf.ReadFrom(r.Body)
-		if err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
-			return
-		}
-		if config.GetHashKey() != "" {
-			if !checkSHA256Hash(buf.Bytes(), config.GetHashKey(), r.Header.Get("HashSHA256")) {
-				http.Error(w, "Mismatch sha256sum", http.StatusBadRequest)
+// UpdateListMetricsJSON add an or update list of metrics from JSON body
+func UpdateListMetricsJSON(metrics *models.MemStorage) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if r.Header.Get("Content-Type") == "application/json" {
+			var list []models.Metric
+			var buf bytes.Buffer
+			_, err := buf.ReadFrom(r.Body)
+			if err != nil {
+				http.Error(w, err.Error(), http.StatusInternalServerError)
 				return
 			}
-		}
-		if err = json.Unmarshal(buf.Bytes(), &list); err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
-			return
-		} else if config.GetDBHost() != "" {
-			ctx, cancel := context.WithTimeout(r.Context(), 1*time.Second)
-			defer cancel()
-			db.SetListJSON(ctx, list)
+			if config.GetHashKey() != "" {
+				if !checkSHA256Hash(buf.Bytes(), config.GetHashKey(), r.Header.Get("HashSHA256")) {
+					http.Error(w, "Mismatch sha256sum", http.StatusBadRequest)
+					return
+				}
+			}
+			if err = json.Unmarshal(buf.Bytes(), &list); err != nil {
+				http.Error(w, err.Error(), http.StatusInternalServerError)
+				return
+			} else if config.GetDBHost() != "" {
+				ctx, cancel := context.WithTimeout(r.Context(), 1*time.Second)
+				defer cancel()
+				db.SetListJSON(ctx, list)
+			} else {
+				metrics.SetMetricList(list)
+				syncWriter(metrics)
+			}
+			resp, err := json.Marshal(&list)
+			if config.GetHashKey() != "" {
+				w.Header().Set("HashSHA256", calculateSHA256Hash(resp, config.GetHashKey()))
+			}
+			if err != nil {
+				http.Error(w, err.Error(), http.StatusInternalServerError)
+				return
+			}
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusOK)
+			_, err = w.Write(resp)
+			if err != nil {
+				http.Error(w, err.Error(), http.StatusInternalServerError)
+				return
+			}
 		} else {
-			metrics.SetMetricList(list)
-			syncWriter()
+			w.WriteHeader(http.StatusBadRequest)
 		}
-		resp, err := json.Marshal(&list)
-		if config.GetHashKey() != "" {
-			w.Header().Set("HashSHA256", calculateSHA256Hash(resp, config.GetHashKey()))
-		}
-		if err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
-			return
-		}
-		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(http.StatusOK)
-		_, err = w.Write(resp)
-		if err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
-			return
-		}
-	} else {
-		w.WriteHeader(http.StatusBadRequest)
 	}
 }
-func UpdateMetricHandlerJSON(w http.ResponseWriter, r *http.Request) {
-	if r.Header.Get("Content-Type") == "application/json" {
+
+// UpdateMetricHandlerJSON add or update metric value from JSON body
+func UpdateMetricHandlerJSON(metrics *models.MemStorage) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if r.Header.Get("Content-Type") == "application/json" {
+			var m models.Metric
+			var buf bytes.Buffer
+			_, err := buf.ReadFrom(r.Body)
+			if err != nil {
+				http.Error(w, err.Error(), http.StatusBadRequest)
+				return
+			}
+			if err = json.Unmarshal(buf.Bytes(), &m); err != nil {
+				http.Error(w, err.Error(), http.StatusBadRequest)
+				return
+			} else if config.GetDBHost() != "" {
+				ctx, cancel := context.WithTimeout(r.Context(), 1*time.Second)
+				defer cancel()
+				if m.MType == constants.Gauge {
+					db.SetValueJSON(ctx, m)
+				} else if m.MType == constants.Counter {
+					db.SetDeltaJSON(ctx, m)
+				}
+			} else {
+				if m.MType == constants.Gauge {
+					metrics.SetGaugeJSON(m)
+				} else if m.MType == constants.Counter {
+					metrics.SetCounterJSON(m)
+				}
+				syncWriter(metrics)
+			}
+			resp, err := json.Marshal(&m)
+			if err != nil {
+				http.Error(w, err.Error(), http.StatusInternalServerError)
+				return
+			}
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusOK)
+			w.Write(resp)
+		} else {
+			w.WriteHeader(http.StatusBadRequest)
+		}
+	}
+}
+
+// GetMetricHandler return metric value by name and type in raw value
+func GetMetricHandler(metrics *models.MemStorage) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		mname := chi.URLParam(r, "name")
+		mtype := chi.URLParam(r, "type")
+		var value string
+		if config.GetDBHost() != "" {
+			ctx, cancel := context.WithTimeout(r.Context(), 1*time.Second)
+			defer cancel()
+			value = convert.GetString(db.GetMetricRaw(ctx, mname, mtype))
+		} else {
+			value = metrics.GetMetric(mname, mtype)
+		}
+		if value != "" {
+			w.WriteHeader(http.StatusOK)
+			w.Header().Set("Content-Type", "application/text")
+			res, err := w.Write([]byte(value))
+			if err != nil {
+				log.Fatalf("Response: %v \n Error while writing response: %v", res, err)
+			}
+		} else {
+			w.WriteHeader(http.StatusNotFound)
+		}
+		err := r.Body.Close()
+		if err != nil {
+			return
+		}
+	}
+}
+
+// GetMetricHandlerJSON return metric value in JSON Struct
+func GetMetricHandlerJSON(metrics *models.MemStorage) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
 		var m models.Metric
 		var buf bytes.Buffer
+		var code int
 		_, err := buf.ReadFrom(r.Body)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusBadRequest)
@@ -127,138 +211,80 @@ func UpdateMetricHandlerJSON(w http.ResponseWriter, r *http.Request) {
 		if err = json.Unmarshal(buf.Bytes(), &m); err != nil {
 			http.Error(w, err.Error(), http.StatusBadRequest)
 			return
-		} else if config.GetDBHost() != "" {
+		}
+		if config.GetDBHost() != "" {
 			ctx, cancel := context.WithTimeout(r.Context(), 1*time.Second)
 			defer cancel()
-			if m.MType == constants.Gauge {
-				db.SetValueJSON(ctx, m)
-			} else if m.MType == constants.Counter {
-				db.SetDeltaJSON(ctx, m)
-			}
+			m, code = db.GetMetricJSON(ctx, m)
 		} else {
-			if m.MType == constants.Gauge {
-				metrics.SetGaugeJSON(m)
-			} else if m.MType == constants.Counter {
-				metrics.SetCounterJSON(m)
-			}
-			syncWriter()
+			m, code = metrics.GetMetricJSON(m)
 		}
-		resp, err := json.Marshal(&m)
+		resp, err := json.Marshal(m)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
 		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(code)
+		w.Write(resp)
+	}
+}
+
+// GetAllMetrics return metrics in HTML
+func GetAllMetrics(metrics *models.MemStorage) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if config.GetDBHost() != "" {
+			ctx, cancel := context.WithTimeout(r.Context(), 2*time.Second)
+			defer cancel()
+			db.GetAllMetrics(ctx, metrics)
+		}
+		t := template.New("t")
+		t, err := t.Parse(htmlTemplate)
+		if err != nil {
+			panic(err)
+		}
+		w.Header().Set("Content-Type", "text/html")
+		err = t.Execute(w, metrics)
+		if err != nil {
+			panic("Failed to execute template: " + err.Error())
+		}
+		err = r.Body.Close()
+		if err != nil {
+			return
+		}
+	}
+}
+
+// GetAllMetricsJSON return metrics in JSON
+func GetAllMetricsJSON(metrics *models.MemStorage) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		m := metrics.GetAllMetrics()
+		resp, err := json.Marshal(&m)
+		if err != nil {
+			log.Fatalf("Response: %v \n Error while writing response: %v", resp, err)
+		}
+		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusOK)
 		w.Write(resp)
-	} else {
-		w.WriteHeader(http.StatusBadRequest)
 	}
 }
 
-func GetMetricHandler(w http.ResponseWriter, r *http.Request) {
-	mname := chi.URLParam(r, "name")
-	mtype := chi.URLParam(r, "type")
-	var value string
-	if config.GetDBHost() != "" {
-		ctx, cancel := context.WithTimeout(r.Context(), 1*time.Second)
-		defer cancel()
-		value = convert.GetString(db.GetMetricRaw(ctx, mname, mtype))
-	} else {
-		value = metrics.GetMetric(mname, mtype)
-	}
-	if value != "" {
-		w.WriteHeader(http.StatusOK)
-		w.Header().Set("Content-Type", "application/text")
-		res, err := w.Write([]byte(value))
-		if err != nil {
-			log.Fatalf("Response: %v \n Error while writing response: %v", res, err)
-		}
-	} else {
-		w.WriteHeader(http.StatusNotFound)
-	}
-	err := r.Body.Close()
-	if err != nil {
-		return
-	}
-}
-
-func GetMetricHandlerJSON(w http.ResponseWriter, r *http.Request) {
-	var m models.Metric
-	var buf bytes.Buffer
-	var code int
-	_, err := buf.ReadFrom(r.Body)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
-		return
-	}
-	if err = json.Unmarshal(buf.Bytes(), &m); err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
-		return
-	}
-	if config.GetDBHost() != "" {
-		ctx, cancel := context.WithTimeout(r.Context(), 1*time.Second)
-		defer cancel()
-		m, code = db.GetMetricJSON(ctx, m)
-	} else {
-		m, code = metrics.GetMetricJSON(m)
-	}
-	resp, err := json.Marshal(m)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(code)
-	w.Write(resp)
-}
-
-func GetAllMetrics(w http.ResponseWriter, r *http.Request) {
-	if config.GetDBHost() != "" {
-		ctx, cancel := context.WithTimeout(r.Context(), 2*time.Second)
-		defer cancel()
-		db.GetAllMetrics(ctx, metrics)
-	}
-	t := template.New("t")
-	t, err := t.Parse(htmlTemplate)
-	if err != nil {
-		panic(err)
-	}
-	w.Header().Set("Content-Type", "text/html")
-	err = t.Execute(w, metrics)
-	if err != nil {
-		panic("Failed to execute template: " + err.Error())
-	}
-	err = r.Body.Close()
-	if err != nil {
-		return
-	}
-}
-
-func GetAllMetricsJSON(w http.ResponseWriter, r *http.Request) {
-	m := metrics.GetAllMetrics()
-	resp, err := json.Marshal(&m)
-	if err != nil {
-		log.Fatalf("Response: %v \n Error while writing response: %v", resp, err)
-	}
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusOK)
-	w.Write(resp)
-}
-
-func RestoreMetricStorage(file string) {
+// RestoreMetricStorage restore metrics from file
+func RestoreMetricStorage(file string) *models.MemStorage {
 	consumer, err := storage.NewConsumer(file)
 	if err != nil {
 		log.Printf("Error while init file consumer %v", err)
-		return
+		return &models.MemStorage{}
 	}
-	metrics, err = consumer.ReadMetrics()
+	metrics, err := consumer.ReadMetrics()
 	if err != nil {
 		log.Printf("Error while read metric %v", err)
 	}
+	return metrics
 }
 
-func SaveMetricStorage(file string) {
+// SaveMetricStorage save metrics to file
+func SaveMetricStorage(file string, metrics *models.MemStorage) {
 	producer, err := storage.NewProducer(file)
 	m := metrics.GetAllMetrics()
 	if err != nil {
@@ -267,9 +293,9 @@ func SaveMetricStorage(file string) {
 	producer.WriteMetrics(m)
 }
 
-func syncWriter() {
+func syncWriter(metrics *models.MemStorage) {
 	if config.GetStoreInterval() == 0 && config.GetDBHost() == "" {
-		SaveMetricStorage(config.GetFilePath())
+		SaveMetricStorage(config.GetFilePath(), metrics)
 	}
 }
 

@@ -2,8 +2,9 @@ package storage
 
 import (
 	"encoding/json"
-	"github.com/zajcev/go-collect-metrics-and-alert/internal/server/models"
 	"os"
+
+	"github.com/zajcev/go-collect-metrics-and-alert/internal/server/models"
 )
 
 type Consumer struct {
@@ -11,6 +12,7 @@ type Consumer struct {
 	decoder *json.Decoder
 }
 
+// NewConsumer creates a new file and returns consumer instance
 func NewConsumer(fileName string) (*Consumer, error) {
 	file, err := os.OpenFile(fileName, os.O_RDONLY, 0666)
 	if err != nil {
@@ -23,6 +25,7 @@ func NewConsumer(fileName string) (*Consumer, error) {
 	}, nil
 }
 
+// ReadMetrics reads metrics from file and returns metric
 func (c *Consumer) ReadMetrics() (*models.MemStorage, error) {
 	metric := models.MemStorage{}
 	if err := c.decoder.Decode(&metric); err != nil {

@@ -2,9 +2,10 @@ package config
 
 import (
 	"flag"
+	"log"
+
 	"github.com/caarlos0/env/v11"
 	"github.com/zajcev/go-collect-metrics-and-alert/internal/convert"
-	"log"
 )
 
 var flags Flags
@@ -17,6 +18,7 @@ type Flags struct {
 	RateLimit      int    `env:"RATE_LIMIT"`
 }
 
+// NewConfig parses the command-line flags and environment variables.
 func NewConfig() error {
 	flag.StringVar(&flags.Address, "a", "localhost:8080", "address and port to run server")
 	flag.StringVar(&flags.HashKey, "k", "12h5b12b521b", "key for sha256sum")
@@ -31,14 +33,23 @@ func NewConfig() error {
 	return nil
 }
 
+// GetAddress returns the address and port to run the server.
 func GetAddress() string {
 	return convert.GetString(&flags.Address)
 }
-func GetReportInterval() uint64 {
-	return convert.GetUint(&flags.ReportInterval)
+
+// GetReportInterval returns the interval between report calls.
+func GetReportInterval() int {
+	return flags.ReportInterval
 }
-func GetPollInterval() uint64 {
-	return convert.GetUint(&flags.PollInterval)
+
+// GetPollInterval returns the interval between polls.
+func GetPollInterval() int {
+	return flags.PollInterval
 }
+
+// GetHashKey returns the key for sha256sum.
 func GetHashKey() string { return convert.GetString(&flags.HashKey) }
-func GetRateLimit() int  { return convert.GetInt(&flags.RateLimit) }
+
+// GetRateLimit returns interval for Reporter
+func GetRateLimit() int { return flags.RateLimit }

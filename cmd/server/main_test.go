@@ -1,6 +1,7 @@
 package main
 
 import (
+	"github.com/zajcev/go-collect-metrics-and-alert/internal/server/models"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -21,12 +22,12 @@ func TestGetArticleID(t *testing.T) {
 		{"Put gauge metric", "/update/gauge/test/123", "POST", 200},
 		{"Put counter metric", "/update/counter/test1/123", "POST", 200},
 	}
-	testServer := httptest.NewServer(Router())
+	testStorage := models.NewMetricsStorage()
+	testServer := httptest.NewServer(router(testStorage))
 	testServer.URL = "http://localhost:8080"
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			//println(test.method, testServer.Listener.Addr().String()+test.target)
 			request, err := http.NewRequest(http.MethodPost, "http://"+testServer.Listener.Addr().String()+test.target, nil)
 			request.Header.Add("Content-Type", "text/plain")
 			if err != nil {

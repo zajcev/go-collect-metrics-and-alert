@@ -1,9 +1,10 @@
 package models
 
 import (
+	"net/http"
+
 	"github.com/zajcev/go-collect-metrics-and-alert/internal/constants"
 	"github.com/zajcev/go-collect-metrics-and-alert/internal/convert"
-	"net/http"
 )
 
 type Metric struct {
@@ -17,12 +18,14 @@ type MemStorage struct {
 	Metrics map[string]Metric
 }
 
+// NewMetricsStorage creates a new instance of MemStorage
 func NewMetricsStorage() *MemStorage {
 	return &MemStorage{
-		Metrics: make(map[string]Metric),
+		Metrics: make(map[string]Metric, 100),
 	}
 }
 
+// SetGauge sets the value of a gauge metric
 func (ms *MemStorage) SetGauge(name string, metricType string, value float64) int {
 	ms.Metrics[name] = Metric{
 		ID:    name,
@@ -32,6 +35,7 @@ func (ms *MemStorage) SetGauge(name string, metricType string, value float64) in
 	return http.StatusOK
 }
 
+// SetCounter sets the value of a counter metric
 func (ms *MemStorage) SetCounter(name string, metricType string, value int64) int {
 	m, exist := ms.Metrics[name]
 	if !exist {
@@ -47,6 +51,7 @@ func (ms *MemStorage) SetCounter(name string, metricType string, value int64) in
 	return http.StatusOK
 }
 
+// SetGaugeJSON sets the value of a gauge metric from JSON
 func (ms *MemStorage) SetCounterJSON(input Metric) int {
 	m, exist := ms.Metrics[input.ID]
 	if !exist {
@@ -61,6 +66,7 @@ func (ms *MemStorage) SetCounterJSON(input Metric) int {
 	return http.StatusOK
 }
 
+// SetGaugeJSON sets the value of a gauge metric from JSON
 func (ms *MemStorage) SetGaugeJSON(input Metric) int {
 	if input.Value == nil {
 		return http.StatusBadRequest
@@ -69,6 +75,7 @@ func (ms *MemStorage) SetGaugeJSON(input Metric) int {
 	return http.StatusOK
 }
 
+// GetMetric returns the value of a metric by name and type
 func (ms *MemStorage) GetMetric(name string, metricType string) string {
 	metric, exists := ms.Metrics[name]
 	if !exists || metric.MType != metricType {
@@ -83,6 +90,7 @@ func (ms *MemStorage) GetMetric(name string, metricType string) string {
 	}
 }
 
+// GetMetricJSON returns the value of a metric by name and type from JSON
 func (ms *MemStorage) GetMetricJSON(input Metric) (Metric, int) {
 	m, exist := ms.Metrics[input.ID]
 	if exist {
@@ -92,10 +100,12 @@ func (ms *MemStorage) GetMetricJSON(input Metric) (Metric, int) {
 	return Metric{}, http.StatusNotFound
 }
 
+// GetAllMetrics returns all metrics
 func (ms *MemStorage) GetAllMetrics() *MemStorage {
 	return ms
 }
 
+// SetMetricList sets a list of metrics
 func (ms *MemStorage) SetMetricList(list []Metric) int {
 	for _, v := range list {
 		if v.MType == constants.Gauge {
