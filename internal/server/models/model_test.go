@@ -17,7 +17,7 @@ func TestNewMetricsStorage(t *testing.T) {
 
 func TestSetGauge(t *testing.T) {
 	ms := NewMetricsStorage()
-	status := ms.SetGauge("test_gauge", "gauge", 1.5)
+	status := ms.SetDeltaRaw("test_gauge", "gauge", 1.5)
 	if status != http.StatusOK {
 		t.Fatalf("Expected status %d, got %d", http.StatusOK, status)
 	}
@@ -28,7 +28,7 @@ func TestSetGauge(t *testing.T) {
 
 func TestSetCounter(t *testing.T) {
 	ms := NewMetricsStorage()
-	status := ms.SetCounter("test_counter", "counter", 5)
+	status := ms.SetValueRaw("test_counter", "counter", 5)
 	if status != http.StatusOK {
 		t.Fatalf("Expected status %d, got %d", http.StatusOK, status)
 	}
@@ -39,8 +39,8 @@ func TestSetCounter(t *testing.T) {
 
 func TestSetCounterIncrement(t *testing.T) {
 	ms := NewMetricsStorage()
-	ms.SetCounter("test_counter", "counter", 5)
-	status := ms.SetCounter("test_counter", "counter", 3)
+	ms.SetValueRaw("test_counter", "counter", 5)
+	status := ms.SetValueRaw("test_counter", "counter", 3)
 	if status != http.StatusOK {
 		t.Fatalf("Expected status %d, got %d", http.StatusOK, status)
 	}
@@ -52,13 +52,13 @@ func TestSetCounterIncrement(t *testing.T) {
 func TestSetCounterJSON(t *testing.T) {
 	ms := NewMetricsStorage()
 	input := Metric{ID: "test_counter", MType: "counter", Delta: int64Ptr(5)}
-	status := ms.SetCounterJSON(input)
+	status := ms.SetValueJSON(input)
 	if status != http.StatusOK {
 		t.Fatalf("Expected status %d, got %d", http.StatusOK, status)
 	}
 
 	input.Delta = int64Ptr(3)
-	status = ms.SetCounterJSON(input)
+	status = ms.SetValueJSON(input)
 	if status != http.StatusOK {
 		t.Fatalf("Expected status %d, got %d", http.StatusOK, status)
 	}
@@ -70,7 +70,7 @@ func TestSetCounterJSON(t *testing.T) {
 func TestSetGaugeJSON(t *testing.T) {
 	ms := NewMetricsStorage()
 	input := Metric{ID: "test_gauge", MType: "gauge", Value: float64Ptr(2.5)}
-	status := ms.SetGaugeJSON(input)
+	status := ms.SetDeltaJSON(input)
 	if status != http.StatusOK {
 		t.Fatalf("Expected status %d, got %d", http.StatusOK, status)
 	}
@@ -82,7 +82,7 @@ func TestSetGaugeJSON(t *testing.T) {
 func TestSetGaugeJSONBadRequest(t *testing.T) {
 	ms := NewMetricsStorage()
 	input := Metric{ID: "test_gauge", MType: "gauge", Value: nil}
-	status := ms.SetGaugeJSON(input)
+	status := ms.SetDeltaJSON(input)
 	if status != http.StatusBadRequest {
 		t.Fatalf("Expected status %d, got %d", http.StatusBadRequest, status)
 	}
@@ -90,8 +90,8 @@ func TestSetGaugeJSONBadRequest(t *testing.T) {
 
 func TestGetMetric(t *testing.T) {
 	ms := NewMetricsStorage()
-	ms.SetGauge("test_gauge", "gauge", 1.5)
-	result := ms.GetMetric("test_gauge", "gauge")
+	ms.SetDeltaRaw("test_gauge", "gauge", 1.5)
+	result := ms.GetMetricRaw("test_gauge", "gauge")
 	if result != "1.5" {
 		t.Fatalf("Expected gauge value string '1.5', got %s", result)
 	}
@@ -99,7 +99,7 @@ func TestGetMetric(t *testing.T) {
 
 func TestGetMetricNotFound(t *testing.T) {
 	ms := NewMetricsStorage()
-	result := ms.GetMetric("non_existing", "gauge")
+	result := ms.GetMetricRaw("non_existing", "gauge")
 	if result != "" {
 		t.Fatalf("Expected empty string for non-existing metric, got %s", result)
 	}
@@ -107,7 +107,7 @@ func TestGetMetricNotFound(t *testing.T) {
 
 func TestGetMetricJSON(t *testing.T) {
 	ms := NewMetricsStorage()
-	ms.SetGauge("test_gauge", "gauge", 1.5)
+	ms.SetDeltaRaw("test_gauge", "gauge", 1.5)
 	input := Metric{ID: "test_gauge"}
 	result, status := ms.GetMetricJSON(input)
 	if status != http.StatusOK {
@@ -120,7 +120,7 @@ func TestGetMetricJSON(t *testing.T) {
 
 func TestGetAllMetrics(t *testing.T) {
 	ms := NewMetricsStorage()
-	ms.SetGauge("test_gauge", "gauge", 1.5)
+	ms.SetDeltaRaw("test_gauge", "gauge", 1.5)
 	allMetrics := ms.GetAllMetrics()
 	if len(allMetrics.Metrics) != 1 {
 		t.Fatalf("Expected 1 metric, got %d", len(allMetrics.Metrics))
@@ -133,7 +133,7 @@ func TestSetMetricList(t *testing.T) {
 		{ID: "gauge1", MType: "gauge", Value: float64Ptr(1.0)},
 		{ID: "counter1", MType: "counter", Delta: int64Ptr(10)},
 	}
-	status := ms.SetMetricList(list)
+	status := ms.SetListJSON(list)
 	if status != http.StatusOK {
 		t.Fatalf("Expected status %d, got %d", http.StatusOK, status)
 	}

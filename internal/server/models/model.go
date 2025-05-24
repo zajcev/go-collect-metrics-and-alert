@@ -8,10 +8,10 @@ import (
 )
 
 type Metric struct {
-	ID    string   `json:"id"`              // имя метрики
-	MType string   `json:"type"`            // параметр, принимающий значение gauge или counter
 	Delta *int64   `json:"delta,omitempty"` // значение метрики в случае передачи counter
 	Value *float64 `json:"value,omitempty"` // значение метрики в случае передачи gauge
+	ID    string   `json:"id"`              // имя метрики
+	MType string   `json:"type"`            // параметр, принимающий значение gauge или counter
 }
 
 type MemStorage struct {
@@ -25,8 +25,8 @@ func NewMetricsStorage() *MemStorage {
 	}
 }
 
-// SetGauge sets the value of a gauge metric
-func (ms *MemStorage) SetGauge(name string, metricType string, value float64) int {
+// SetDeltaRaw sets the value of a gauge metric
+func (ms *MemStorage) SetDeltaRaw(name string, metricType string, value float64) int {
 	ms.Metrics[name] = Metric{
 		ID:    name,
 		MType: metricType,
@@ -35,8 +35,8 @@ func (ms *MemStorage) SetGauge(name string, metricType string, value float64) in
 	return http.StatusOK
 }
 
-// SetCounter sets the value of a counter metric
-func (ms *MemStorage) SetCounter(name string, metricType string, value int64) int {
+// SetValueRaw sets the value of a counter metric
+func (ms *MemStorage) SetValueRaw(name string, metricType string, value int64) int {
 	m, exist := ms.Metrics[name]
 	if !exist {
 		ms.Metrics[name] = Metric{
@@ -51,8 +51,8 @@ func (ms *MemStorage) SetCounter(name string, metricType string, value int64) in
 	return http.StatusOK
 }
 
-// SetGaugeJSON sets the value of a gauge metric from JSON
-func (ms *MemStorage) SetCounterJSON(input Metric) int {
+// SetDeltaJSON sets the value of a gauge metric from JSON
+func (ms *MemStorage) SetValueJSON(input Metric) int {
 	m, exist := ms.Metrics[input.ID]
 	if !exist {
 		ms.Metrics[input.ID] = input
@@ -66,8 +66,8 @@ func (ms *MemStorage) SetCounterJSON(input Metric) int {
 	return http.StatusOK
 }
 
-// SetGaugeJSON sets the value of a gauge metric from JSON
-func (ms *MemStorage) SetGaugeJSON(input Metric) int {
+// SetDeltaJSON sets the value of a gauge metric from JSON
+func (ms *MemStorage) SetDeltaJSON(input Metric) int {
 	if input.Value == nil {
 		return http.StatusBadRequest
 	}
@@ -75,8 +75,8 @@ func (ms *MemStorage) SetGaugeJSON(input Metric) int {
 	return http.StatusOK
 }
 
-// GetMetric returns the value of a metric by name and type
-func (ms *MemStorage) GetMetric(name string, metricType string) string {
+// GetMetricRaw returns the value of a metric by name and type
+func (ms *MemStorage) GetMetricRaw(name string, metricType string) string {
 	metric, exists := ms.Metrics[name]
 	if !exists || metric.MType != metricType {
 		return ""
@@ -105,13 +105,13 @@ func (ms *MemStorage) GetAllMetrics() *MemStorage {
 	return ms
 }
 
-// SetMetricList sets a list of metrics
-func (ms *MemStorage) SetMetricList(list []Metric) int {
+// SetListJSON sets a list of metrics
+func (ms *MemStorage) SetListJSON(list []Metric) int {
 	for _, v := range list {
 		if v.MType == constants.Gauge {
-			ms.SetGaugeJSON(v)
+			ms.SetDeltaJSON(v)
 		} else if v.MType == constants.Counter {
-			ms.SetCounterJSON(v)
+			ms.SetValueJSON(v)
 		} else {
 			return http.StatusBadRequest
 		}

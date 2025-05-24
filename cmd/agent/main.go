@@ -3,13 +3,11 @@ package main
 import (
 	"context"
 	"fmt"
+	"github.com/zajcev/go-collect-metrics-and-alert/internal/agent/config"
+	"github.com/zajcev/go-collect-metrics-and-alert/internal/agent/listeners"
 	"log"
 	"net/http"
 	_ "net/http/pprof"
-	"os"
-
-	"github.com/zajcev/go-collect-metrics-and-alert/internal/agent/config"
-	"github.com/zajcev/go-collect-metrics-and-alert/internal/agent/listeners"
 )
 
 func main() {
@@ -47,6 +45,4 @@ func main() {
 	err = <-errChan
 	log.Printf("Fatal error: %v", err)
 	cancel()
-	os.Exit(1)
-
 }

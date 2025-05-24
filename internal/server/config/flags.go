@@ -12,11 +12,11 @@ var flags Flags
 
 type Flags struct {
 	Address       string `env:"ADDRESS"`
-	StoreInterval int    `env:"STORE_INTERVAL"`
 	FilePath      string `env:"FILE_STORAGE_PATH"`
-	Restore       bool   `env:"RESTORE"`
 	DBHost        string `env:"DATABASE_DSN"`
 	HashKey       string `env:"KEY"`
+	StoreInterval int    `env:"STORE_INTERVAL"`
+	Restore       bool   `env:"RESTORE"`
 }
 
 // NewConfig parses the command-line flags and environment variables.

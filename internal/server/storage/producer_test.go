@@ -14,7 +14,11 @@ func TestNewProducer(t *testing.T) {
 	if err != nil {
 		t.Fatalf("expected no error, got %v", err)
 	}
-	defer producer.Close()
+	defer func() {
+		if err = producer.Close(); err != nil {
+			t.Fatalf("could not close producer: %v", err)
+		}
+	}()
 
 	if producer.file == nil {
 		t.Fatal("expected file to be opened, got nil")
@@ -23,7 +27,11 @@ func TestNewProducer(t *testing.T) {
 		t.Fatal("expected encoder to be initialized, got nil")
 	}
 
-	os.Remove(fileName)
+	defer func() {
+		if err = os.Remove(fileName); err != nil {
+			t.Fatalf("could not remove file: %v", err)
+		}
+	}()
 }
 
 func TestWriteMetrics(t *testing.T) {
@@ -32,7 +40,11 @@ func TestWriteMetrics(t *testing.T) {
 	if err != nil {
 		t.Fatalf("expected no error, got %v", err)
 	}
-	defer producer.Close()
+	defer func() {
+		if err = producer.Close(); err != nil {
+			t.Fatalf("could not close producer: %v", err)
+		}
+	}()
 
 	metrics := &models.MemStorage{}
 
@@ -45,7 +57,11 @@ func TestWriteMetrics(t *testing.T) {
 	if err != nil {
 		t.Fatalf("expected no error, got %v", err)
 	}
-	defer file.Close()
+	defer func() {
+		if err = file.Close(); err != nil {
+			t.Fatalf("could not close file: %v", err)
+		}
+	}()
 
 	var writtenMetrics models.MemStorage
 	decoder := json.NewDecoder(file)
@@ -54,7 +70,11 @@ func TestWriteMetrics(t *testing.T) {
 		t.Fatalf("expected no error decoding metrics, got %v", err)
 	}
 
-	os.Remove(fileName)
+	defer func() {
+		if err = os.Remove(fileName); err != nil {
+			t.Fatalf("could not remove file: %v", err)
+		}
+	}()
 }
 
 func TestClose(t *testing.T) {
@@ -73,5 +93,9 @@ func TestClose(t *testing.T) {
 	if err == nil {
 		t.Fatal("expected an error when writing to a closed producer, got none")
 	}
-	os.Remove(fileName)
+	defer func() {
+		if err = os.Remove(fileName); err != nil {
+			t.Fatalf("could not remove file: %v", err)
+		}
+	}()
 }
