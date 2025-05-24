@@ -18,11 +18,11 @@ import (
 func TestCalculateSHA256Hash(t *testing.T) {
 	tests := []struct {
 		name     string
-		data     []byte
 		key      string
 		expected string
+		data     []byte
 	}{
-		{"Basic test", []byte("test data"), "key", "91d2330355770ae2a13eb43e62d9ed805aa140d4c7157a7cf69c170d1050fb6c"},
+		{"Basic test", "91d2330355770ae2a13eb43e62d9ed805aa140d4c7157a7cf69c170d1050fb6c", "key", []byte("test data")},
 	}
 
 	for _, tt := range tests {
@@ -49,7 +49,10 @@ func TestRetryFailure(t *testing.T) {
 		t.Fatalf("Expected error, got none")
 	}
 	if resp != nil {
-		resp.Body.Close()
+		err = resp.Body.Close()
+		if err != nil {
+			t.Fatalf("Error while body close %v", err)
+		}
 		t.Fatalf("Expected nil response, got %v", resp)
 	}
 
@@ -58,7 +61,10 @@ func TestRetryFailure(t *testing.T) {
 func TestNewReporter(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 3)
 	defer cancel()
-	NewReporter(ctx, 2, "http://localhost:8080/update")
+	err := NewReporter(ctx, 2, "http://localhost:8080/update")
+	if err != nil {
+		t.Fatalf("Error while create reporter %v", err)
+	}
 }
 
 func BenchmarkSend(b *testing.B) {
@@ -75,18 +81,21 @@ func BenchmarkSend(b *testing.B) {
 				}
 				var buf bytes.Buffer
 				gz := gzip.NewWriter(&buf)
-				if _, err := gz.Write(resp); err != nil {
+				if _, err = gz.Write(resp); err != nil {
 					w.WriteHeader(http.StatusInternalServerError)
 					return
 				}
-				if err := gz.Close(); err != nil {
+				if err = gz.Close(); err != nil {
 					w.WriteHeader(http.StatusInternalServerError)
 					return
 				}
 				w.Header().Set("Content-Encoding", "gzip")
 				w.Header().Set("Content-Type", "application/json")
 				w.WriteHeader(http.StatusOK)
-				w.Write(buf.Bytes())
+				_, err = w.Write(buf.Bytes())
+				if err != nil {
+					b.Fatalf("Error while write body : %v", err)
+				}
 			}))
 			defer testServer.Close()
 

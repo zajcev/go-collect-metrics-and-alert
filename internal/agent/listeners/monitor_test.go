@@ -2,6 +2,7 @@ package listeners
 
 import (
 	"context"
+	"log"
 	"testing"
 	"time"
 
@@ -87,7 +88,10 @@ func Test_monitor(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			ctx, cancel := context.WithTimeout(context.Background(), 3)
 			defer cancel()
-			NewMonitor(ctx, 2)
+			err := NewMonitor(ctx, 2)
+			if err != nil {
+				t.Fatalf("Error create monitor : %v", err)
+			}
 		})
 	}
 }
@@ -95,5 +99,8 @@ func Test_monitor(t *testing.T) {
 func BenchmarkMonitor(*testing.B) {
 	ctx, cancel := context.WithTimeout(context.Background(), 3)
 	defer cancel()
-	NewMonitor(ctx, 2)
+	err := NewMonitor(ctx, 2)
+	if err != nil {
+		log.Fatalf("Error create monitor : %v", err)
+	}
 }

@@ -2,40 +2,23 @@ package main
 
 import (
 	"context"
-	"github.com/zajcev/go-collect-metrics-and-alert/internal/server/models"
-	"log"
-	"net/http"
-	_ "net/http/pprof"
-
-	"github.com/go-chi/chi/v5"
 	"github.com/jasonlvhit/gocron"
 	"github.com/zajcev/go-collect-metrics-and-alert/internal/convert"
 	"github.com/zajcev/go-collect-metrics-and-alert/internal/server/config"
 	"github.com/zajcev/go-collect-metrics-and-alert/internal/server/db"
 	"github.com/zajcev/go-collect-metrics-and-alert/internal/server/handlers"
-	"github.com/zajcev/go-collect-metrics-and-alert/internal/server/middleware"
+	"github.com/zajcev/go-collect-metrics-and-alert/internal/server/models"
+	"github.com/zajcev/go-collect-metrics-and-alert/internal/server/routes"
+	"log"
+	"net/http"
+	_ "net/http/pprof"
 )
 
-func router(mertics *models.MemStorage) chi.Router {
-	r := chi.NewRouter()
-	r.Use(middleware.GzipMiddleware)
-	r.Use(middleware.ZapMiddleware)
-	r.Post("/update/{type}/{name}/{value}", handlers.UpdateMetricHandler(mertics))
-	r.Post("/update/", handlers.UpdateMetricHandlerJSON(mertics))
-	r.Post("/updates/", handlers.UpdateListMetricsJSON(mertics))
-	r.Post("/value/", handlers.GetMetricHandlerJSON(mertics))
-	r.Get("/value/{type}/{name}", handlers.GetMetricHandler(mertics))
-	r.Get("/", handlers.GetAllMetrics(mertics))
-	r.Get("/json", handlers.GetAllMetricsJSON(mertics))
-	r.Get("/ping", handlers.DatabaseHandler)
-	return r
-}
-
 func main() {
+	storage := models.NewMetricsStorage()
 	go func() {
 		log.Println(http.ListenAndServe("localhost:6060", nil))
 	}()
-	storage := models.NewMetricsStorage()
 
 	err := config.NewConfig()
 	if err != nil {
@@ -46,18 +29,28 @@ func main() {
 			storage = handlers.RestoreMetricStorage(config.GetFilePath())
 		}
 		if config.GetStoreInterval() > 0 {
-			go startScheduler(convert.GetUint(config.GetStoreInterval()), config.GetFilePath())
+			go func() {
+				err = startScheduler(convert.GetUint(config.GetStoreInterval()), config.GetFilePath())
+				if err != nil {
+					log.Printf("Error with startScheduler: %v\n", err)
+				}
+			}()
 		}
 	} else {
 		ctx := context.Background()
 		db.Init(ctx, config.GetDBHost())
 	}
 
-	log.Fatal(http.ListenAndServe(config.GetAddress(), router(storage)))
+	router := routes.NewRouter(storage)
+	log.Fatal(http.ListenAndServe(config.GetAddress(), router))
 }
 
-func startScheduler(interval uint64, filePath string) {
+func startScheduler(interval uint64, filePath string) error {
 	scheduler := gocron.NewScheduler()
-	scheduler.Every(interval).Seconds().Do(handlers.SaveMetricStorage, filePath)
+	err := scheduler.Every(interval).Seconds().Do(handlers.SaveMetricStorage, filePath)
+	if err != nil {
+		return err
+	}
 	scheduler.Start()
+	return nil
 }
