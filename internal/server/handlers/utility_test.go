@@ -243,12 +243,12 @@ func ExampleGetAllMetricsJSON() {
 	handler(w, req)
 
 	resp := w.Result()
-	defer func(Body io.ReadCloser) {
-		err := Body.Close()
+	defer func() {
+		err := resp.Body.Close()
 		if err != nil {
-			fmt.Println(err)
+			log.Fatalf("Error while close result body: %v", err)
 		}
-	}(resp.Body)
+	}()
 
 	body, _ := io.ReadAll(resp.Body)
 
@@ -292,14 +292,16 @@ func ExampleGetMetricHandlerJSON() {
 	handler(w, req)
 
 	resp := w.Result()
-	err := w.Result().Body.Close()
-	if err != nil {
-		log.Fatalf("Error while close result body: %v", err)
-	}
+	defer func() {
+		err := resp.Body.Close()
+		if err != nil {
+			log.Fatalf("Error while close result body: %v", err)
+		}
+	}()
 	body, _ := io.ReadAll(resp.Body)
 
 	var prettyJSON bytes.Buffer
-	err = json.Indent(&prettyJSON, body, "", "  ")
+	err := json.Indent(&prettyJSON, body, "", "  ")
 	if err != nil {
 		log.Fatalf("Error while formating json : %v", err)
 	}
