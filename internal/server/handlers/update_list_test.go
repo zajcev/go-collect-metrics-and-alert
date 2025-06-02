@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"github.com/zajcev/go-collect-metrics-and-alert/internal/server/config"
@@ -95,7 +96,7 @@ func ExampleTestUpdateListMetricsJSON() {
 
 	w := httptest.NewRecorder()
 	handler.UpdateListJSON(w, req)
-	list := storage.GetAllMetrics(nil)
+	list := storage.GetAllMetrics(context.Background())
 	jsonData, err := json.Marshal(list)
 	if err != nil {
 		fmt.Println("Error marshaling metrics:", err)

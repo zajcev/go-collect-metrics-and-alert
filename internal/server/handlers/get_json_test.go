@@ -50,7 +50,7 @@ func TestGetMetricHandlerJSON(t *testing.T) {
 	}
 }
 
-func ExampleGetMetricHandlerJSON() {
+func ExampleNewGetMetricJSONHandler() {
 	storage := models.NewMemStorage()
 	value := 3.14
 	ctx := context.Background()

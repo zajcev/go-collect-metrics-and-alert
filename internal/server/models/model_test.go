@@ -49,7 +49,7 @@ func TestSetDeltaRaw(t *testing.T) {
 		t.Fatalf("expected status %d, got %d", http.StatusOK, status)
 	}
 
-	metric, _ = ms.Storage[name]
+	metric = ms.Storage[name]
 	if *metric.Delta != 8 {
 		t.Fatalf("expected updated delta %d, got %d", 8, *metric.Delta)
 	}
@@ -71,14 +71,13 @@ func TestSetDeltaJSON(t *testing.T) {
 		t.Fatalf("expected metric with delta %d, got %v", delta, metric)
 	}
 
-	// Test updating delta with existing metric
 	deltaUpdate := int64(5)
 	status = ms.SetDeltaJSON(ctx, Metric{ID: name, Delta: &deltaUpdate})
 	if status != http.StatusOK {
 		t.Fatalf("expected status %d, got %d", http.StatusOK, status)
 	}
 
-	metric, _ = ms.Storage[name]
+	metric = ms.Storage[name]
 	if *metric.Delta != 15 {
 		t.Fatalf("expected updated delta %d, got %d", 15, *metric.Delta)
 	}

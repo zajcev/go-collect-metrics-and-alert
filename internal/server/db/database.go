@@ -46,6 +46,9 @@ var file string
 // migration executes database migration
 func Migration(DBUrl string, path string) {
 	gp, err := os.Getwd()
+	if err != nil {
+		log.Fatalf("Error get current directory : %v", err)
+	}
 	filePath := filepath.Join(gp, path)
 	d, _ := sql.Open("postgres", DBUrl)
 	driver, _ := postgres.WithInstance(d, &postgres.Config{})
