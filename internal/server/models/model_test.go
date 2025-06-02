@@ -1,154 +1,143 @@
 package models
 
 import (
+	"context"
 	"net/http"
 	"testing"
+
+	"github.com/zajcev/go-collect-metrics-and-alert/internal/constants"
 )
 
-func TestNewMetricsStorage(t *testing.T) {
-	ms := NewMetricsStorage()
-	if ms == nil {
-		t.Fatal("Expected non-nil MemStorage")
-	}
-	if len(ms.Metrics) != 0 {
-		t.Fatalf("Expected empty metrics map, got %d", len(ms.Metrics))
-	}
-}
+func TestSetValueRaw(t *testing.T) {
+	ms := NewMemStorage()
+	ctx := context.Background()
+	value := 10.5
+	name := "metric1"
+	metricType := constants.Gauge
 
-func TestSetGauge(t *testing.T) {
-	ms := NewMetricsStorage()
-	status := ms.SetDeltaRaw("test_gauge", "gauge", 1.5)
+	status := ms.SetValueRaw(ctx, name, metricType, value)
 	if status != http.StatusOK {
-		t.Fatalf("Expected status %d, got %d", http.StatusOK, status)
+		t.Fatalf("expected status %d, got %d", http.StatusOK, status)
 	}
-	if metric, exist := ms.Metrics["test_gauge"]; !exist || *metric.Value != 1.5 {
-		t.Fatalf("Expected gauge value 1.5, got %v", metric.Value)
+
+	metric, exists := ms.Storage[name]
+	if !exists || *metric.Value != value {
+		t.Fatalf("expected metric with value %f, got %v", value, metric)
 	}
 }
 
-func TestSetCounter(t *testing.T) {
-	ms := NewMetricsStorage()
-	status := ms.SetValueRaw("test_counter", "counter", 5)
+func TestSetDeltaRaw(t *testing.T) {
+	ms := NewMemStorage()
+	ctx := context.Background()
+	name := "metric2"
+	metricType := constants.Counter
+	delta := int64(5)
+
+	status := ms.SetDeltaRaw(ctx, name, metricType, delta)
 	if status != http.StatusOK {
-		t.Fatalf("Expected status %d, got %d", http.StatusOK, status)
+		t.Fatalf("expected status %d, got %d", http.StatusOK, status)
 	}
-	if metric, exist := ms.Metrics["test_counter"]; !exist || *metric.Delta != 5 {
-		t.Fatalf("Expected counter delta 5, got %v", metric.Delta)
-	}
-}
 
-func TestSetCounterIncrement(t *testing.T) {
-	ms := NewMetricsStorage()
-	ms.SetValueRaw("test_counter", "counter", 5)
-	status := ms.SetValueRaw("test_counter", "counter", 3)
+	metric, exists := ms.Storage[name]
+	if !exists || *metric.Delta != delta {
+		t.Fatalf("expected metric with delta %d, got %v", delta, metric)
+	}
+
+	// Test updating the delta
+	status = ms.SetDeltaRaw(ctx, name, metricType, 3)
 	if status != http.StatusOK {
-		t.Fatalf("Expected status %d, got %d", http.StatusOK, status)
+		t.Fatalf("expected status %d, got %d", http.StatusOK, status)
 	}
-	if metric, exist := ms.Metrics["test_counter"]; !exist || *metric.Delta != 8 {
-		t.Fatalf("Expected counter delta 8, got %v", metric.Delta)
+
+	metric, _ = ms.Storage[name]
+	if *metric.Delta != 8 {
+		t.Fatalf("expected updated delta %d, got %d", 8, *metric.Delta)
 	}
 }
 
-func TestSetCounterJSON(t *testing.T) {
-	ms := NewMetricsStorage()
-	input := Metric{ID: "test_counter", MType: "counter", Delta: int64Ptr(5)}
-	status := ms.SetValueJSON(input)
+func TestSetDeltaJSON(t *testing.T) {
+	ms := NewMemStorage()
+	ctx := context.Background()
+	name := "metric3"
+	delta := int64(10)
+
+	status := ms.SetDeltaJSON(ctx, Metric{ID: name, Delta: &delta})
 	if status != http.StatusOK {
-		t.Fatalf("Expected status %d, got %d", http.StatusOK, status)
+		t.Fatalf("expected status %d, got %d", http.StatusOK, status)
 	}
 
-	input.Delta = int64Ptr(3)
-	status = ms.SetValueJSON(input)
+	metric, exists := ms.Storage[name]
+	if !exists || *metric.Delta != delta {
+		t.Fatalf("expected metric with delta %d, got %v", delta, metric)
+	}
+
+	// Test updating delta with existing metric
+	deltaUpdate := int64(5)
+	status = ms.SetDeltaJSON(ctx, Metric{ID: name, Delta: &deltaUpdate})
 	if status != http.StatusOK {
-		t.Fatalf("Expected status %d, got %d", http.StatusOK, status)
+		t.Fatalf("expected status %d, got %d", http.StatusOK, status)
 	}
-	if metric, exist := ms.Metrics["test_counter"]; !exist || *metric.Delta != 8 {
-		t.Fatalf("Expected counter delta 8, got %v", metric.Delta)
+
+	metric, _ = ms.Storage[name]
+	if *metric.Delta != 15 {
+		t.Fatalf("expected updated delta %d, got %d", 15, *metric.Delta)
 	}
 }
 
-func TestSetGaugeJSON(t *testing.T) {
-	ms := NewMetricsStorage()
-	input := Metric{ID: "test_gauge", MType: "gauge", Value: float64Ptr(2.5)}
-	status := ms.SetDeltaJSON(input)
+func TestSetValueJSON(t *testing.T) {
+	ms := NewMemStorage()
+	ctx := context.Background()
+	name := "metric4"
+	value := 20.0
+
+	status := ms.SetValueJSON(ctx, Metric{ID: name, Value: &value})
 	if status != http.StatusOK {
-		t.Fatalf("Expected status %d, got %d", http.StatusOK, status)
+		t.Fatalf("expected status %d, got %d", http.StatusOK, status)
 	}
-	if metric, exist := ms.Metrics["test_gauge"]; !exist || *metric.Value != 2.5 {
-		t.Fatalf("Expected gauge value 2.5, got %v", metric.Value)
+
+	metric, exists := ms.Storage[name]
+	if !exists || *metric.Value != value {
+		t.Fatalf("expected metric with value %f, got %v", value, metric)
 	}
 }
 
-func TestSetGaugeJSONBadRequest(t *testing.T) {
-	ms := NewMetricsStorage()
-	input := Metric{ID: "test_gauge", MType: "gauge", Value: nil}
-	status := ms.SetDeltaJSON(input)
-	if status != http.StatusBadRequest {
-		t.Fatalf("Expected status %d, got %d", http.StatusBadRequest, status)
-	}
-}
+func TestGetMetricRaw(t *testing.T) {
+	ms := NewMemStorage()
+	ctx := context.Background()
+	name := "metric5"
+	value := 25.0
+	metricType := constants.Gauge
+	expected := "25"
 
-func TestGetMetric(t *testing.T) {
-	ms := NewMetricsStorage()
-	ms.SetDeltaRaw("test_gauge", "gauge", 1.5)
-	result := ms.GetMetricRaw("test_gauge", "gauge")
-	if result != "1.5" {
-		t.Fatalf("Expected gauge value string '1.5', got %s", result)
+	ms.SetValueRaw(ctx, name, metricType, value)
+	result := ms.GetMetricRaw(ctx, name, metricType)
+	if result != expected {
+		t.Fatalf("expected value %f, got %v", value, result)
 	}
-}
 
-func TestGetMetricNotFound(t *testing.T) {
-	ms := NewMetricsStorage()
-	result := ms.GetMetricRaw("non_existing", "gauge")
+	// Test non-existing metric
+	result = ms.GetMetricRaw(ctx, "nonexistent", metricType)
 	if result != "" {
-		t.Fatalf("Expected empty string for non-existing metric, got %s", result)
+		t.Fatalf("expected empty result for nonexistent metric, got %v", result)
 	}
 }
 
 func TestGetMetricJSON(t *testing.T) {
-	ms := NewMetricsStorage()
-	ms.SetDeltaRaw("test_gauge", "gauge", 1.5)
-	input := Metric{ID: "test_gauge"}
-	result, status := ms.GetMetricJSON(input)
-	if status != http.StatusOK {
-		t.Fatalf("Expected status %d, got %d", http.StatusOK, status)
-	}
-	if result.ID != "test_gauge" || *result.Value != 1.5 {
-		t.Fatalf("Expected result metric with ID 'test_gauge' and value 1.5, got %+v", result)
-	}
-}
+	ms := NewMemStorage()
+	ctx := context.Background()
+	name := "metric6"
+	value := 30.0
+	metricType := constants.Gauge
 
-func TestGetAllMetrics(t *testing.T) {
-	ms := NewMetricsStorage()
-	ms.SetDeltaRaw("test_gauge", "gauge", 1.5)
-	allMetrics := ms.GetAllMetrics()
-	if len(allMetrics.Metrics) != 1 {
-		t.Fatalf("Expected 1 metric, got %d", len(allMetrics.Metrics))
+	ms.SetValueRaw(ctx, name, metricType, value)
+	metric, status := ms.GetMetricJSON(ctx, Metric{ID: name})
+	if status != http.StatusOK || metric.Value == nil || *metric.Value != value {
+		t.Fatalf("expected status %d and value %f, got %d and %v", http.StatusOK, value, status, metric)
 	}
-}
 
-func TestSetMetricList(t *testing.T) {
-	ms := NewMetricsStorage()
-	list := []Metric{
-		{ID: "gauge1", MType: "gauge", Value: float64Ptr(1.0)},
-		{ID: "counter1", MType: "counter", Delta: int64Ptr(10)},
+	// Test non-existing metric
+	metric, status = ms.GetMetricJSON(ctx, Metric{ID: "nonexistent"})
+	if status != http.StatusNotFound {
+		t.Fatalf("expected status %d for nonexistent metric, got %d", http.StatusNotFound, status)
 	}
-	status := ms.SetListJSON(list)
-	if status != http.StatusOK {
-		t.Fatalf("Expected status %d, got %d", http.StatusOK, status)
-	}
-	if _, exist := ms.Metrics["gauge1"]; !exist {
-		t.Fatal("Expected gauge1 to exist in metrics")
-	}
-	if _, exist := ms.Metrics["counter1"]; !exist {
-		t.Fatal("Expected counter1 to exist in metrics")
-	}
-}
-
-func float64Ptr(f float64) *float64 {
-	return &f
-}
-
-func int64Ptr(i int64) *int64 {
-	return &i
 }

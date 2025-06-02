@@ -1,31 +1,30 @@
 package handlers
 
 import (
+	"context"
 	"crypto/sha256"
 	"encoding/hex"
 	_ "github.com/lib/pq"
-	"github.com/zajcev/go-collect-metrics-and-alert/internal/server/config"
 	"github.com/zajcev/go-collect-metrics-and-alert/internal/server/models"
 	"github.com/zajcev/go-collect-metrics-and-alert/internal/server/storage"
 	"log"
+	"time"
 )
 
 // SaveMetricStorage save metrics to file
-func SaveMetricStorage(file string, metrics *models.MemStorage) {
+func SaveMetricStorage(file string, metrics interface {
+	GetAllMetrics(ctx context.Context) *models.MemStorage
+}) {
 	producer, err := storage.NewProducer(file)
-	m := metrics.GetAllMetrics()
+	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
+	defer cancel()
+	m := metrics.GetAllMetrics(ctx)
 	if err != nil {
-		log.Fatalf("Error create NewProducer : %v", err)
+		log.Fatalf("Error create NewProducer bla bla bla : %v", err)
 	}
 	err = producer.WriteMetrics(m)
 	if err != nil {
 		log.Fatalf("Error write metrics : %v", err)
-	}
-}
-
-func syncWriter(metrics *models.MemStorage) {
-	if config.GetStoreInterval() == 0 && config.GetDBHost() == "" {
-		SaveMetricStorage(config.GetFilePath(), metrics)
 	}
 }
 

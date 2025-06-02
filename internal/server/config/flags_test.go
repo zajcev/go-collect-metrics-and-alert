@@ -24,6 +24,9 @@ func TestNewConfig(t *testing.T) {
 	if err := os.Setenv("DATABASE_DSN", "postgres://user:password@localhost:5432/metrics?sslmode=disable"); err != nil {
 		log.Fatalf("failed to set DATABASE_DSN: %v", err)
 	}
+	if err := os.Setenv("KEY", "testkey"); err != nil {
+		log.Fatalf("failed to set KEY: %v", err)
+	}
 
 	err := NewConfig()
 	assert.NoError(t, err)

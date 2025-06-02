@@ -10,7 +10,14 @@ import (
 	_ "net/http/pprof"
 )
 
+var (
+	buildVersion string
+	buildDate    string
+	buildCommit  string
+)
+
 func main() {
+	printLdFlags()
 	go func() {
 		log.Println(http.ListenAndServe("localhost:5050", nil))
 	}()
@@ -45,4 +52,17 @@ func main() {
 	err = <-errChan
 	log.Printf("Fatal error: %v", err)
 	cancel()
+}
+
+func printLdFlags() {
+	getValue := func(v string) string {
+		if v == "" {
+			return "N/A"
+		}
+		return v
+	}
+
+	fmt.Printf("Build version: %s\n", getValue(buildVersion))
+	fmt.Printf("Build date: %s\n", getValue(buildDate))
+	fmt.Printf("Build commit: %s\n", getValue(buildCommit))
 }
