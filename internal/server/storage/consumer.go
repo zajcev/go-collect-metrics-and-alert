@@ -2,9 +2,8 @@ package storage
 
 import (
 	"encoding/json"
-	"os"
-
 	"github.com/zajcev/go-collect-metrics-and-alert/internal/server/models"
+	"os"
 )
 
 type Consumer struct {

@@ -3,16 +3,14 @@ package listeners
 import (
 	"bytes"
 	"compress/gzip"
-	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/zajcev/go-collect-metrics-and-alert/internal/agent/model"
 	"math/rand"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
 	"testing"
-
-	"github.com/zajcev/go-collect-metrics-and-alert/internal/agent/model"
 )
 
 func TestCalculateSHA256Hash(t *testing.T) {
@@ -22,7 +20,7 @@ func TestCalculateSHA256Hash(t *testing.T) {
 		expected string
 		data     []byte
 	}{
-		{"Basic test", "91d2330355770ae2a13eb43e62d9ed805aa140d4c7157a7cf69c170d1050fb6c", "key", []byte("test data")},
+		{"Basic test", "91d2330355770ae2a13eb43e62d9ed805aa140d4c7157a7cf69c170d1050fb6c", "028d12d30de2e9ba518d80e9c399ef217af712427ea4eaa54d060836fe97c8df", []byte("test data")},
 	}
 
 	for _, tt := range tests {
@@ -58,12 +56,36 @@ func TestRetryFailure(t *testing.T) {
 
 }
 
-func TestNewReporter(t *testing.T) {
-	ctx, cancel := context.WithTimeout(context.Background(), 3)
-	defer cancel()
-	err := NewReporter(ctx, 2, "http://localhost:8080/update")
-	if err != nil {
-		t.Fatalf("Error while create reporter %v", err)
+func TestSend(t *testing.T) {
+	list := generateRandomMetrics(10)
+	testServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		resp, err := json.Marshal(list)
+		if err != nil {
+			w.WriteHeader(http.StatusInternalServerError)
+			return
+		}
+		var buf bytes.Buffer
+		gz := gzip.NewWriter(&buf)
+		if _, err = gz.Write(resp); err != nil {
+			w.WriteHeader(http.StatusInternalServerError)
+			return
+		}
+		if err = gz.Close(); err != nil {
+			w.WriteHeader(http.StatusInternalServerError)
+			return
+		}
+		w.Header().Set("Content-Encoding", "gzip")
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusOK)
+		_, err = w.Write(buf.Bytes())
+		if err != nil {
+			t.Fatalf("Error while write body : %v", err)
+		}
+	}))
+	defer testServer.Close()
+
+	for i := 0; i < 3; i++ {
+		send(testServer.URL, &list)
 	}
 }
 

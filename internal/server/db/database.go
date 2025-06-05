@@ -19,25 +19,37 @@ import (
 	"github.com/zajcev/go-collect-metrics-and-alert/internal/server/models"
 )
 
-var db *pgxpool.Pool
+type Database interface {
+	SetDeltaRaw(ctx context.Context, name string, metricType string, value int64) int
+	SetValueRaw(ctx context.Context, name string, metricType string, value float64) int
+	SetValueJSON(ctx context.Context, input models.Metric) int
+	SetDeltaJSON(ctx context.Context, input models.Metric) int
+	GetMetricRaw(ctx context.Context, name string, metricType string) any
+	GetMetricJSON(ctx context.Context, input models.Metric) (models.Metric, int)
+	GetAllMetrics(ctx context.Context, ms *models.MemStorage) *models.MemStorage
+	SetListJSON(ctx context.Context, list []models.Metric) int
+	Ping(ctx context.Context) error
+}
+type DatabaseStorage struct {
+	Database *pgxpool.Pool
+}
+
+func NewDatabaseStorage(database *pgxpool.Pool) (*DatabaseStorage, error) {
+	return &DatabaseStorage{
+		Database: database,
+	}, nil
+}
 
 //go:embed scripts/000001_test.up.sql
 var file string
 
-// Init initializes database connection
-func Init(ctx context.Context, DBUrl string) {
-	d, err := pgxpool.New(ctx, DBUrl)
-	if err != nil {
-		log.Printf("Error while connect to database: %v", err)
-	}
-	db = d
-	migration(DBUrl)
-}
-
 // migration executes database migration
-func migration(DBUrl string) {
-	wd, _ := os.Getwd()
-	filePath := filepath.Join(wd, "internal/server/db/scripts/")
+func Migration(DBUrl string, path string) {
+	gp, err := os.Getwd()
+	if err != nil {
+		log.Fatalf("Error get current directory : %v", err)
+	}
+	filePath := filepath.Join(gp, path)
 	d, _ := sql.Open("postgres", DBUrl)
 	driver, _ := postgres.WithInstance(d, &postgres.Config{})
 	m, err := migrate.NewWithDatabaseInstance(
@@ -51,46 +63,31 @@ func migration(DBUrl string) {
 }
 
 // Ping checks database connection
-func Ping(ctx context.Context) error {
-	return db.Ping(ctx)
+func (ds *DatabaseStorage) Ping(ctx context.Context) error {
+	return ds.Database.Ping(ctx)
 }
 
 // GetMetricRaw returns metric value from database
-func GetMetricRaw(ctx context.Context, mname string, mtype string) interface{} {
+func (ds *DatabaseStorage) GetMetricRaw(ctx context.Context, name string, metricType string) any {
 	var value interface{}
-	if mtype == constants.Gauge {
-		row, _ := db.Query(ctx, getValue, mname, mtype)
-		if row.Err() != nil {
-			log.Printf("Error while execute query: %v", row.Err())
-			return nil
-		}
-		defer row.Close()
-		err := row.Scan(&value)
+	if metricType == constants.Gauge {
+		err := ds.Database.QueryRow(ctx, getDelta, name, metricType).Scan(&value)
 		if err != nil {
 			return nil
 		}
 		return value
 	} else {
-		row, _ := db.Query(ctx, getDelta, mname, mtype)
-		if row.Err() != nil {
-			log.Printf("Error while execute query: %v", row.Err())
+		err := ds.Database.QueryRow(ctx, getValue, name, metricType).Scan(&value)
+		if err != nil {
 			return nil
 		}
-		defer row.Close()
-		if row.Next() {
-			err := row.Scan(&value)
-			if err != nil {
-				return nil
-			}
-			return value
-		}
+		return value
 	}
-	return nil
 }
 
 // GetMetricJSON returns models.Metric for response in JSON format
-func GetMetricJSON(ctx context.Context, m models.Metric) (models.Metric, int) {
-	row, _ := db.Query(ctx, getMetric, m.ID, m.MType)
+func (ds *DatabaseStorage) GetMetricJSON(ctx context.Context, m models.Metric) (models.Metric, int) {
+	row, _ := ds.Database.Query(ctx, getMetric, m.ID, m.MType)
 	if row.Err() != nil {
 		log.Printf("Error while execute query: %v", row.Err())
 	}
@@ -106,34 +103,38 @@ func GetMetricJSON(ctx context.Context, m models.Metric) (models.Metric, int) {
 }
 
 // SetDeltaRaw sets value for metric type Gauge in a database by raw value
-func SetDeltaRaw(ctx context.Context, mname string, mtype string, delta int64) {
-	_, err := db.Exec(ctx, insertDelta, mname, mtype, delta)
+func (ds *DatabaseStorage) SetDeltaRaw(ctx context.Context, name string, metricType string, value int64) int {
+	_, err := ds.Database.Exec(ctx, insertDelta, name, metricType, value)
 	if err != nil {
 		var pgErr *pgconn.PgError
 		if errors.As(err, &pgErr) {
 			log.Printf("PGError: %v", pgErr)
 		} else {
-			log.Printf("Error while insert metric: Error=%v, id=%v, type=%v, delta=%v", err, mname, mtype, delta)
+			log.Printf("Error while insert metric: Error=%v, id=%v, type=%v, delta=%v", err, name, metricType, value)
 		}
+		return http.StatusInternalServerError
 	}
+	return http.StatusOK
 }
 
 // SetValueRaw sets value for metric type Counter in a database by raw value
-func SetValueRaw(ctx context.Context, mname string, mtype string, value float64) {
-	_, err := db.Exec(ctx, insertValue, mname, mtype, value)
+func (ds *DatabaseStorage) SetValueRaw(ctx context.Context, name string, metricType string, value float64) int {
+	_, err := ds.Database.Exec(ctx, insertValue, name, metricType, value)
 	if err != nil {
 		var pgErr *pgconn.PgError
 		if errors.As(err, &pgErr) {
 			log.Printf("PGError: %v", pgErr)
 		} else {
-			log.Printf("Error while insert metric: Error=%v, id=%v, type=%v, value=%v", err, mname, mtype, value)
+			log.Printf("Error while insert metric: Error=%v, id=%v, type=%v, value=%v", err, name, metricType, value)
 		}
+		return http.StatusInternalServerError
 	}
+	return http.StatusOK
 }
 
 // SetDeltaJSON sets value for metric type Gauge in a database by JSON value
-func SetDeltaJSON(ctx context.Context, m models.Metric) {
-	_, err := db.Exec(ctx, insertDelta, m.ID, m.MType, m.Delta)
+func (ds *DatabaseStorage) SetDeltaJSON(ctx context.Context, m models.Metric) int {
+	_, err := ds.Database.Exec(ctx, insertDelta, m.ID, m.MType, m.Delta)
 	if err != nil {
 		var pgErr *pgconn.PgError
 		if errors.As(err, &pgErr) {
@@ -141,12 +142,14 @@ func SetDeltaJSON(ctx context.Context, m models.Metric) {
 		} else {
 			log.Printf("Error while insert metric: Error=%v, id=%v, type=%v, delta=%v", err, m.ID, m.MType, m.Delta)
 		}
+		return http.StatusInternalServerError
 	}
+	return http.StatusOK
 }
 
 // SetValueJSON sets value for metric type Counter in a database by JSON value
-func SetValueJSON(ctx context.Context, m models.Metric) {
-	_, err := db.Exec(ctx, insertValue, m.ID, m.MType, m.Value)
+func (ds *DatabaseStorage) SetValueJSON(ctx context.Context, m models.Metric) int {
+	_, err := ds.Database.Exec(ctx, insertValue, m.ID, m.MType, m.Value)
 	if err != nil {
 		var pgErr *pgconn.PgError
 		if errors.As(err, &pgErr) {
@@ -154,12 +157,14 @@ func SetValueJSON(ctx context.Context, m models.Metric) {
 		} else {
 			log.Printf("Error while insert metric: Error=%v, id=%v, type=%v, value=%v", err, m.ID, m.MType, m.Value)
 		}
+		return http.StatusInternalServerError
 	}
+	return http.StatusOK
 }
 
 // SetListJSON sets list of metrics in a database by metric list of JSON values
-func SetListJSON(ctx context.Context, list []models.Metric) {
-	tx, err := db.Begin(ctx)
+func (ds *DatabaseStorage) SetListJSON(ctx context.Context, list []models.Metric) int {
+	tx, err := ds.Database.Begin(ctx)
 	if err != nil {
 		log.Printf("Error while begin transaction: %v", err)
 	}
@@ -175,29 +180,35 @@ func SetListJSON(ctx context.Context, list []models.Metric) {
 			if err != nil {
 				log.Printf("Error while rollback transaction: %v", err)
 			}
+			return http.StatusInternalServerError
 		}
 	}
 	err = tx.Commit(ctx)
 	if err != nil {
-		return
+		log.Printf("Error while commit transaction: %v", err)
+		return http.StatusInternalServerError
 	}
+	return http.StatusOK
 }
 
 // GetAllMetrics returns all metrics from database
-func GetAllMetrics(ctx context.Context, ms *models.MemStorage) {
+func (ds *DatabaseStorage) GetAllMetrics(ctx context.Context) *models.MemStorage {
+	result := models.NewMemStorage()
 	list := []models.Metric{}
 	row := models.Metric{}
-	rows, _ := db.Query(ctx, getAll)
+	rows, _ := ds.Database.Query(ctx, getAll)
 	if rows.Err() != nil {
 		log.Printf("Error while execute query: %v", rows.Err())
-		return
+		return nil
 	}
 	for i := 0; rows.Next(); i++ {
 		err := rows.Scan(&row.ID, &row.MType, &row.Delta, &row.Value)
 		if err != nil {
-			return
+			return nil
 		}
 		list = append(list, row)
 	}
-	ms.SetListJSON(list)
+
+	result.SetListJSON(ctx, list)
+	return result
 }
