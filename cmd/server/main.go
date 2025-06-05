@@ -72,6 +72,7 @@ func startScheduler(interval uint64, filePath string, storage db.Storage) error 
 	}
 	scheduler.Start()
 	return nil
+
 }
 
 func printLdFlags() {

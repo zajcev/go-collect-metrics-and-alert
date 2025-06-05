@@ -208,6 +208,7 @@ func (ds *DatabaseStorage) GetAllMetrics(ctx context.Context) *models.MemStorage
 		}
 		list = append(list, row)
 	}
+
 	result.SetListJSON(ctx, list)
 	return result
 }

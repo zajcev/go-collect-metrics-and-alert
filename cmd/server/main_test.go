@@ -21,6 +21,7 @@ func TestGetArticleID(t *testing.T) {
 	}{
 		{"Metric without name", "/update/counter/123", "POST", 404},
 	}
+
 	testStorage := models.NewMemStorage()
 	testServer := httptest.NewServer(routes.NewRouter(testStorage))
 	testServer.URL = "http://localhost:8080"

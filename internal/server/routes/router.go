@@ -31,5 +31,6 @@ func NewRouter(storage db.Storage) chi.Router {
 	r.Get("/", getAllHTML.GetAllMetrics)
 	r.Get("/json", getAllJSON.GetAllMetricsJSON)
 	r.Get("/ping", handlers.DatabaseHandler(storage))
+  
 	return r
 }

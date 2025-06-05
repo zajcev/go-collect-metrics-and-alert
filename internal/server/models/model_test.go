@@ -93,7 +93,7 @@ func TestSetValueJSON(t *testing.T) {
 	if status != http.StatusOK {
 		t.Fatalf("expected status %d, got %d", http.StatusOK, status)
 	}
-
+  
 	metric, exists := ms.Storage[name]
 	if !exists || *metric.Value != value {
 		t.Fatalf("expected metric with value %f, got %v", value, metric)
