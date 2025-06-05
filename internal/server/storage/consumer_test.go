@@ -15,7 +15,11 @@ func TestNewConsumer(t *testing.T) {
 	if err != nil {
 		t.Fatalf("could not create file: %v", err)
 	}
-	defer os.Remove(fileName)
+	defer func() {
+		if err = os.Remove(fileName); err != nil {
+			t.Fatalf("could not remove file: %v", err)
+		}
+	}()
 
 	consumer, err := NewConsumer(fileName)
 	if err != nil {
@@ -43,19 +47,31 @@ func TestReadMetrics(t *testing.T) {
 	if err != nil {
 		t.Fatalf("could not create file: %v", err)
 	}
-	defer os.Remove(fileName)
+	defer func() {
+		if err = os.Remove(fileName); err != nil {
+			t.Fatalf("could not remove file: %v", err)
+		}
+	}()
 
 	encoder := json.NewEncoder(file)
-	if err := encoder.Encode(data); err != nil {
+	if err = encoder.Encode(data); err != nil {
 		t.Fatalf("could not encode test data: %v", err)
 	}
-	file.Close()
+	defer func() {
+		if err = file.Close(); err != nil {
+			t.Fatalf("could not close file: %v", err)
+		}
+	}()
 
 	consumer, err := NewConsumer(fileName)
 	if err != nil {
 		t.Fatalf("expected no error, got %v", err)
 	}
-	defer consumer.Close()
+	defer func() {
+		if err = consumer.Close(); err != nil {
+			t.Fatalf("could not close consumer: %v", err)
+		}
+	}()
 
 	metric, err := consumer.ReadMetrics()
 	if err != nil {
@@ -72,18 +88,30 @@ func TestReadMetrics_InvalidJSON(t *testing.T) {
 	if err != nil {
 		t.Fatalf("could not create file: %v", err)
 	}
-	defer os.Remove(fileName)
+	defer func() {
+		if err = os.Remove(fileName); err != nil {
+			t.Fatalf("could not remove file: %v", err)
+		}
+	}()
 
-	if _, err := file.WriteString("{invalid}"); err != nil {
+	if _, err = file.WriteString("{invalid}"); err != nil {
 		t.Fatalf("could not write invalid json: %v", err)
 	}
-	file.Close()
+	defer func() {
+		if err = file.Close(); err != nil {
+			t.Fatalf("could not close file: %v", err)
+		}
+	}()
 
 	consumer, err := NewConsumer(fileName)
 	if err != nil {
 		t.Fatalf("expected no error, got %v", err)
 	}
-	defer consumer.Close()
+	defer func() {
+		if err = consumer.Close(); err != nil {
+			t.Fatalf("could not close consumer: %v", err)
+		}
+	}()
 
 	_, err = consumer.ReadMetrics()
 	if err == nil {
