@@ -1,11 +1,12 @@
 package handlers
 
 import (
-	"bytes"
 	"context"
 	"encoding/json"
 	"github.com/zajcev/go-collect-metrics-and-alert/internal/server/config"
 	"github.com/zajcev/go-collect-metrics-and-alert/internal/server/models"
+	"io"
+	"log"
 	"net/http"
 	"time"
 )
@@ -28,20 +29,22 @@ func (handler *UpdateListJSONHandler) UpdateListJSON(w http.ResponseWriter, r *h
 		ctx, cancel := context.WithTimeout(r.Context(), 200*time.Second)
 		defer cancel()
 		var list []models.Metric
-		var buf bytes.Buffer
+		body, err := io.ReadAll(r.Body)
+		if err != nil {
+			log.Printf("Error read body : %v", err)
+		}
 		metrics := handler.storage
-		_, err := buf.ReadFrom(r.Body)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
 		if config.GetHashKey() != "" {
-			if !checkSHA256Hash(buf.Bytes(), config.GetHashKey(), r.Header.Get("HashSHA256")) {
+			if !checkSHA256Hash(body, config.GetHashKey(), r.Header.Get("HashSHA256")) {
 				http.Error(w, "Mismatch sha256sum", http.StatusBadRequest)
 				return
 			}
 		}
-		if err = json.Unmarshal(buf.Bytes(), &list); err != nil {
+		if err = json.Unmarshal(body, &list); err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}

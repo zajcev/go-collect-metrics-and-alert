@@ -7,6 +7,7 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
+	"github.com/zajcev/go-collect-metrics-and-alert/internal/crypto"
 	"io"
 	"log"
 	"net/http"
@@ -78,9 +79,20 @@ func send(u string, list *[]model.MetricJSON) {
 		log.Fatalf("Error compressing json: %v", err)
 		return
 	}
+	bodyBytes := buf.Bytes()
+	if config.GetCryptoKey() != "" {
+		key, errPub := crypto.LoadPublicKey(config.GetCryptoKey())
+		if errPub != nil {
+			log.Printf("Error load public key : %v", errPub)
+		}
+		bodyBytes, err = crypto.Encrypt(key, bodyBytes)
+		if err != nil {
+			log.Printf("Error encrypt data : %v", err)
+		}
+	}
 
 	client := &http.Client{}
-	request, err := http.NewRequest("POST", fu.String(), &buf)
+	request, err := http.NewRequest("POST", fu.String(), bytes.NewReader(bodyBytes))
 	if err != nil {
 		log.Fatalf("Error creating request: %v", err)
 	}
