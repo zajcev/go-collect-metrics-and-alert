@@ -1,8 +1,12 @@
 package middleware
 
 import (
+	"bytes"
 	"compress/gzip"
+	"github.com/zajcev/go-collect-metrics-and-alert/internal/crypto"
+	"github.com/zajcev/go-collect-metrics-and-alert/internal/server/config"
 	"io"
+	"log"
 	"net/http"
 	"strings"
 )
@@ -40,18 +44,6 @@ type compressReader struct {
 	zr *gzip.Reader
 }
 
-func newCompressReader(r io.ReadCloser) (*compressReader, error) {
-	zr, err := gzip.NewReader(r)
-	if err != nil {
-		return nil, err
-	}
-
-	return &compressReader{
-		r:  r,
-		zr: zr,
-	}, nil
-}
-
 func (c compressReader) Read(p []byte) (n int, err error) {
 	return c.zr.Read(p)
 }
@@ -87,14 +79,58 @@ func (rw *responseWriter) Write(b []byte) (int, error) {
 	return rw.compressWriter.Write(b)
 }
 
+type byteReadCloser struct {
+	*bytes.Reader
+}
+
+func (b *byteReadCloser) Close() error {
+	return nil
+}
+
+func newByteReadCloser(data []byte) io.ReadCloser {
+	return &byteReadCloser{bytes.NewReader(data)}
+}
+
+func newCompressReaderFromBytes(data []byte) (*compressReader, error) {
+	rc := newByteReadCloser(data)
+	defer func(rc io.ReadCloser) {
+		err := rc.Close()
+		if err != nil {
+		}
+	}(rc)
+	zr, err := gzip.NewReader(rc)
+	if err != nil {
+		return nil, err
+	}
+
+	return &compressReader{
+		r:  rc,
+		zr: zr,
+	}, nil
+}
 func GzipMiddleware(h http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		// Request
 		contentEncoding := r.Header.Get("Content-Encoding")
 		sendsGzip := strings.Contains(contentEncoding, "gzip")
+		body, err := io.ReadAll(r.Body)
+		if err != nil {
+			log.Printf("Error reading body from request : %v", err)
+		}
 		if sendsGzip {
-			cr, err := newCompressReader(r.Body)
-			if err != nil {
+			if config.GetCryptoKey() != "" {
+				key, errKey := crypto.LoadPrivateKey(config.GetCryptoKey())
+				if errKey != nil {
+					log.Printf("Error load public key : %v", errKey)
+				}
+				decrypted, errDecrypt := crypto.Decrypt(key, body)
+				if errDecrypt != nil {
+					log.Printf("Error decrypt data : %v", errDecrypt)
+				}
+				body = decrypted
+			}
+			cr, errCompress := newCompressReaderFromBytes(body)
+			if errCompress != nil {
 				w.WriteHeader(http.StatusInternalServerError)
 				return
 			}
