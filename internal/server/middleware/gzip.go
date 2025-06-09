@@ -96,6 +96,8 @@ func newCompressReaderFromBytes(data []byte) (*compressReader, error) {
 	defer func(rc io.ReadCloser) {
 		err := rc.Close()
 		if err != nil {
+			log.Printf("Error close reader : %v", err)
+			return
 		}
 	}(rc)
 	zr, err := gzip.NewReader(rc)
