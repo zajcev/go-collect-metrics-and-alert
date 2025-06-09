@@ -15,6 +15,7 @@ type Flags struct {
 	FilePath      string `env:"FILE_STORAGE_PATH"`
 	DBHost        string `env:"DATABASE_DSN"`
 	HashKey       string `env:"KEY"`
+	CryptoKey     string `env:"CRYPTO_KEY"`
 	StoreInterval int    `env:"STORE_INTERVAL"`
 	Restore       bool   `env:"RESTORE"`
 }
@@ -24,7 +25,8 @@ func NewConfig() error {
 	flag.StringVar(&flags.Address, "a", "localhost:8080", "address and port to run server")
 	flag.StringVar(&flags.HashKey, "k", "", "key for sha256sum")
 	flag.IntVar(&flags.StoreInterval, "i", 300, "interval between stored files")
-	flag.StringVar(&flags.FilePath, "f", "/tmp/metrics", "path to store files") ///tmp/metrics
+	flag.StringVar(&flags.FilePath, "f", "/tmp/metrics", "path to store files")                   ///tmp/metrics
+	flag.StringVar(&flags.CryptoKey, "crypto-key", "/tmp/key.pem", "public key for decrypt data") ///tmp/key.pem
 	flag.BoolVar(&flags.Restore, "r", false, "restore files")
 	flag.StringVar(&flags.DBHost, "d", "postgres://user:password@localhost:5432/metrics?sslmode=disable", "database host") //postgres://user:password@localhost:5432/metrics?sslmode=disable
 	flag.Parse()
@@ -60,3 +62,6 @@ func GetDBHost() string {
 func GetHashKey() string {
 	return convert.GetString(&flags.HashKey)
 }
+
+// GetCryptoKey return path to file with private key
+func GetCryptoKey() string { return convert.GetString(&flags.CryptoKey) }
