@@ -110,54 +110,56 @@ func newCompressReaderFromBytes(data []byte) (*compressReader, error) {
 		zr: zr,
 	}, nil
 }
-func GzipMiddleware(h http.Handler) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		// Request
-		contentEncoding := r.Header.Get("Content-Encoding")
-		sendsGzip := strings.Contains(contentEncoding, "gzip")
-		body, err := io.ReadAll(r.Body)
-		if err != nil {
-			log.Printf("Error reading body from request : %v", err)
-		}
-		if sendsGzip {
-			if config.GetCryptoKey() != "" {
-				key, errKey := crypto.LoadPrivateKey(config.GetCryptoKey())
-				if errKey != nil {
-					log.Printf("Error load public key : %v", errKey)
-				}
-				decrypted, errDecrypt := crypto.Decrypt(key, body)
-				if errDecrypt != nil {
-					log.Printf("Error decrypt data : %v", errDecrypt)
-				}
-				body = decrypted
+func GzipMiddleware(config config.Config) func(http.Handler) http.Handler {
+	return func(h http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			// Request
+			contentEncoding := r.Header.Get("Content-Encoding")
+			sendsGzip := strings.Contains(contentEncoding, "gzip")
+			body, err := io.ReadAll(r.Body)
+			if err != nil {
+				log.Printf("Error reading body from request : %v", err)
 			}
-			cr, errCompress := newCompressReaderFromBytes(body)
-			if errCompress != nil {
-				w.WriteHeader(http.StatusInternalServerError)
-				return
-			}
-			r.Body = cr
-			defer func() {
-				if err = cr.Close(); err != nil {
-					http.Error(w, err.Error(), http.StatusInternalServerError)
+			if sendsGzip {
+				if config.GetCryptoKey() != "" {
+					key, errKey := crypto.LoadPrivateKey(config.GetCryptoKey())
+					if errKey != nil {
+						log.Printf("Error load public key : %v", errKey)
+					}
+					decrypted, errDecrypt := crypto.Decrypt(key, body)
+					if errDecrypt != nil {
+						log.Printf("Error decrypt data : %v", errDecrypt)
+					}
+					body = decrypted
 				}
-			}()
-		}
+				cr, errCompress := newCompressReaderFromBytes(body)
+				if errCompress != nil {
+					w.WriteHeader(http.StatusInternalServerError)
+					return
+				}
+				r.Body = cr
+				defer func() {
+					if err = cr.Close(); err != nil {
+						http.Error(w, err.Error(), http.StatusInternalServerError)
+					}
+				}()
+			}
 
-		// Response
-		acceptEncoding := r.Header.Get("Accept-Encoding")
-		supportsGzip := strings.Contains(acceptEncoding, "gzip")
-		if supportsGzip {
-			cw := newCompressWriter(w)
-			defer func() {
-				if err := cw.Close(); err != nil {
-					http.Error(w, err.Error(), http.StatusInternalServerError)
-				}
-			}()
-			rw := &responseWriter{ResponseWriter: w, compressWriter: cw}
-			h.ServeHTTP(rw, r)
-		} else {
-			h.ServeHTTP(w, r)
-		}
-	})
+			// Response
+			acceptEncoding := r.Header.Get("Accept-Encoding")
+			supportsGzip := strings.Contains(acceptEncoding, "gzip")
+			if supportsGzip {
+				cw := newCompressWriter(w)
+				defer func() {
+					if err := cw.Close(); err != nil {
+						http.Error(w, err.Error(), http.StatusInternalServerError)
+					}
+				}()
+				rw := &responseWriter{ResponseWriter: w, compressWriter: cw}
+				h.ServeHTTP(rw, r)
+			} else {
+				h.ServeHTTP(w, r)
+			}
+		})
+	}
 }

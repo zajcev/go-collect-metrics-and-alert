@@ -6,6 +6,7 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/jasonlvhit/gocron"
 	"github.com/zajcev/go-collect-metrics-and-alert/internal/convert"
+	"github.com/zajcev/go-collect-metrics-and-alert/internal/crypto"
 	"github.com/zajcev/go-collect-metrics-and-alert/internal/server/config"
 	"github.com/zajcev/go-collect-metrics-and-alert/internal/server/db"
 	"github.com/zajcev/go-collect-metrics-and-alert/internal/server/handlers"
@@ -24,23 +25,31 @@ var (
 
 func main() {
 	printLdFlags()
+	configuration := config.NewConfig()
+	err := configuration.Load()
+	if err != nil {
+		log.Fatalf("Error load config : %v", err)
+	}
 	var memstorage db.Storage
 	memstorage = models.NewMemStorage()
 	go func() {
 		log.Println(http.ListenAndServe("localhost:6060", nil))
 	}()
 
-	err := config.NewConfig()
-	if err != nil {
-		log.Printf("Error: %v\n", err)
-	}
-	if config.GetDBHost() == "" {
-		if config.GetRestore() {
-			memstorage = handlers.RestoreMetricStorage(config.GetFilePath())
+	if configuration.GetCryptoKey() != "" {
+		err = crypto.GenKeyPair()
+		if err != nil {
+			log.Fatalf("Error generate rsa key pair : %v", err)
 		}
-		if config.GetStoreInterval() > 0 {
+	}
+
+	if configuration.GetDBHost() == "" {
+		if configuration.GetRestore() {
+			memstorage = handlers.RestoreMetricStorage(configuration.GetFilePath())
+		}
+		if configuration.GetStoreInterval() > 0 {
 			go func() {
-				err = startScheduler(convert.GetUint(config.GetStoreInterval()), config.GetFilePath(), memstorage)
+				err = startScheduler(convert.GetUint(configuration.GetStoreInterval()), configuration.GetFilePath(), memstorage)
 				if err != nil {
 					log.Printf("Error with startScheduler: %v\n", err)
 				}
@@ -49,19 +58,19 @@ func main() {
 	} else {
 		ctx, cancel := context.WithCancel(context.Background())
 		defer cancel()
-		pool, poolErr := pgxpool.New(ctx, config.GetDBHost())
-		if err != nil {
+		pool, poolErr := pgxpool.New(ctx, configuration.GetDBHost())
+		if poolErr != nil {
 			log.Fatalf("Error while create new PgxPool : %v", poolErr)
 		}
-		db.Migration(config.GetDBHost(), "internal/server/db/scripts/")
+		db.Migration(configuration.GetDBHost(), "internal/server/db/scripts/")
 		memstorage, err = db.NewDatabaseStorage(pool)
 		if err != nil {
 			log.Fatal(err)
 		}
 	}
 
-	router := routes.NewRouter(memstorage)
-	log.Fatal(http.ListenAndServe(config.GetAddress(), router))
+	router := routes.NewRouter(memstorage, configuration)
+	log.Fatal(http.ListenAndServe(configuration.GetAddress(), router))
 }
 
 func startScheduler(interval uint64, filePath string, storage db.Storage) error {

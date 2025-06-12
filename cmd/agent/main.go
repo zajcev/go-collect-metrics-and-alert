@@ -22,9 +22,10 @@ func main() {
 		log.Println(http.ListenAndServe("localhost:5050", nil))
 	}()
 
-	err := config.NewConfig()
+	configuration := config.NewConfig()
+	err := configuration.Load()
 	if err != nil {
-		log.Fatalf("Error while config initialization: %v", err)
+		log.Fatalf("Error load config : %v", err)
 	}
 
 	errChan := make(chan error, 1)
@@ -32,19 +33,19 @@ func main() {
 	defer cancel()
 
 	go func() {
-		if err = listeners.NewMonitor(ctx, config.GetPollInterval()); err != nil {
+		if err = listeners.NewMonitor(ctx, configuration.GetPollInterval()); err != nil {
 			errChan <- fmt.Errorf("monitor start failed: %w", err)
 		}
 	}()
 
 	go func() {
-		if err = listeners.NewReporter(ctx, config.GetReportInterval(), "http://"+config.GetAddress()+"/updates/"); err != nil {
+		if err = listeners.NewReporter(ctx, configuration.GetReportInterval(), "http://"+configuration.GetAddress()+"/updates/", configuration); err != nil {
 			errChan <- fmt.Errorf("HTTP server failed: %w", err)
 		}
 	}()
 
 	go func() {
-		if err = listeners.AdditionalMetrics(ctx, config.GetPollInterval()); err != nil {
+		if err = listeners.AdditionalMetrics(ctx, configuration.GetPollInterval()); err != nil {
 			errChan <- fmt.Errorf("HTTP server failed: %w", err)
 		}
 	}()

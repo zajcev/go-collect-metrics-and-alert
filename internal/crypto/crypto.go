@@ -7,31 +7,26 @@ import (
 	"encoding/pem"
 	"errors"
 	"fmt"
+	"log"
 	"os"
 )
 
-//	func GenerateKeyPair(bits int) (*rsa.PrivateKey, *rsa.PublicKey, error) {
-//		privateKey, err := rsa.GenerateKey(rand.Reader, bits)
-//		if err != nil {
-//			return nil, nil, err
-//		}
-//		return privateKey, &privateKey.PublicKey, nil
-//	}
-//
-// Натянуть это на GenKeyPair
 func GenKeyPair() error {
-	// Генерация ключей
 	privateKey, err := rsa.GenerateKey(rand.Reader, 4096)
 	if err != nil {
 		return fmt.Errorf("failed to generate key pair: %w", err)
 	}
 
-	// Сохранение приватного ключа (PKCS1)
 	privateFile, err := os.Create("/tmp/key.pem")
 	if err != nil {
 		return fmt.Errorf("failed to create private key file: %w", err)
 	}
-	defer privateFile.Close()
+	defer func(privateFile *os.File) {
+		err = privateFile.Close()
+		if err != nil {
+			log.Fatalf("Error close file with private key : %v", err)
+		}
+	}(privateFile)
 
 	privateBlock := &pem.Block{
 		Type:  "RSA PRIVATE KEY",
@@ -41,15 +36,19 @@ func GenKeyPair() error {
 		return fmt.Errorf("failed to write private key: %w", err)
 	}
 
-	// Сохранение публичного ключа (PKCS1)
 	publicFile, err := os.Create("/tmp/cert.pem")
 	if err != nil {
 		return fmt.Errorf("failed to create public key file: %w", err)
 	}
-	defer publicFile.Close()
+	defer func(publicFile *os.File) {
+		err = publicFile.Close()
+		if err != nil {
+			log.Fatalf("Error close file with public key : %v", err)
+		}
+	}(publicFile)
 
 	publicBlock := &pem.Block{
-		Type:  "RSA PUBLIC KEY", // Правильный тип для PKCS1
+		Type:  "RSA PUBLIC KEY",
 		Bytes: x509.MarshalPKCS1PublicKey(&privateKey.PublicKey),
 	}
 	if err = pem.Encode(publicFile, publicBlock); err != nil {

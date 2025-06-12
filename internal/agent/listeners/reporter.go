@@ -26,7 +26,7 @@ var MemStorage model.Metrics
 // NewReporter send metrics to the server with an interval.
 // Func variable interval defines the frequency of sending.
 // Func variable u defines the url of the server.
-func NewReporter(ctx context.Context, interval int, u string) error {
+func NewReporter(ctx context.Context, interval int, u string, config config.Config) error {
 	mt := reflect.TypeOf(MemStorage)
 	duration := time.Duration(interval) * time.Second
 	ticker := time.NewTicker(duration)
@@ -55,12 +55,12 @@ func NewReporter(ctx context.Context, interval int, u string) error {
 				metric.MType = t
 				mj = append(mj, metric)
 			}
-			send(u, &mj)
+			send(u, &mj, config)
 		}
 	}
 }
 
-func send(u string, list *[]model.MetricJSON) {
+func send(u string, list *[]model.MetricJSON, config config.Config) {
 	req, err := json.Marshal(list)
 	if err != nil {
 		log.Fatalf("Error marshalling json: %v", err)
