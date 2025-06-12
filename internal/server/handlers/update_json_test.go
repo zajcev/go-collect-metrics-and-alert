@@ -3,14 +3,24 @@ package handlers
 import (
 	"bytes"
 	"context"
+	"flag"
 	"fmt"
+	"github.com/zajcev/go-collect-metrics-and-alert/internal/server/config"
 	"github.com/zajcev/go-collect-metrics-and-alert/internal/server/models"
+	"log"
 	"net/http/httptest"
+	"os"
 )
 
 func ExampleUpdateMetricHandlerJSON() {
 	storage := models.NewMemStorage()
-	handler := NewUpdateMetricHandlerJSON(storage)
+	flag.CommandLine = flag.NewFlagSet(os.Args[0], flag.ContinueOnError)
+	configuration := config.NewConfig()
+	err := configuration.Load()
+	if err != nil {
+		log.Fatalf("Error load config : %v", err)
+	}
+	handler := NewUpdateMetricHandlerJSON(storage, configuration)
 	jsonBody := `{"id":"test", "type": "gauge", "value": 42}`
 	reqBody := bytes.NewReader([]byte(jsonBody))
 
