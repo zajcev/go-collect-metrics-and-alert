@@ -14,7 +14,7 @@ type Config interface {
 	loadFromJSON(path string) error
 	loadFromENV() error
 	GetAddress() string
-	GetStoreInterval() uint64
+	GetStoreInterval() int
 	GetFilePath() string
 	GetRestore() bool
 	GetDBHost() string
@@ -99,8 +99,8 @@ func (c *Provider) loadFromENV() error {
 func (c *Provider) GetAddress() string { return convert.GetString(&c.Config.Address) }
 
 // GetStoreInterval returns the interval between stored files.
-func (c *Provider) GetStoreInterval() uint64 {
-	return convert.GetUint(&c.Config.StoreInterval)
+func (c *Provider) GetStoreInterval() int {
+	return c.Config.StoreInterval
 }
 
 // GetFilePath returns the path to store files.

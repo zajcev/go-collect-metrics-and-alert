@@ -11,13 +11,13 @@ import (
 	"os"
 )
 
-func GenKeyPair() error {
+func GenKeyPair(dir string) error {
 	privateKey, err := rsa.GenerateKey(rand.Reader, 4096)
 	if err != nil {
 		return fmt.Errorf("failed to generate key pair: %w", err)
 	}
 
-	privateFile, err := os.Create("/tmp/key.pem")
+	privateFile, err := os.Create("/" + dir + "/key.pem")
 	if err != nil {
 		return fmt.Errorf("failed to create private key file: %w", err)
 	}
@@ -36,7 +36,7 @@ func GenKeyPair() error {
 		return fmt.Errorf("failed to write private key: %w", err)
 	}
 
-	publicFile, err := os.Create("/tmp/cert.pem")
+	publicFile, err := os.Create("/" + dir + "/cert.pem")
 	if err != nil {
 		return fmt.Errorf("failed to create public key file: %w", err)
 	}

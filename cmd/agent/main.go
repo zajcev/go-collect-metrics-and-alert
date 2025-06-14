@@ -8,6 +8,10 @@ import (
 	"log"
 	"net/http"
 	_ "net/http/pprof"
+	"os"
+	"os/signal"
+	"syscall"
+	"time"
 )
 
 var (
@@ -32,6 +36,9 @@ func main() {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
+	sigChan := make(chan os.Signal, 1)
+	signal.Notify(sigChan, syscall.SIGTERM, syscall.SIGINT, syscall.SIGQUIT)
+
 	go func() {
 		if err = listeners.NewMonitor(ctx, configuration.GetPollInterval()); err != nil {
 			errChan <- fmt.Errorf("monitor start failed: %w", err)
@@ -50,9 +57,15 @@ func main() {
 		}
 	}()
 
-	err = <-errChan
-	log.Printf("Fatal error: %v", err)
-	cancel()
+	select {
+	case err = <-errChan:
+		log.Printf("Fatal error: %v", err)
+		cancel()
+	case sig := <-sigChan:
+		log.Printf("Received signal %v, shutting down gracefully...", sig)
+		cancel()
+		time.Sleep(1 * time.Second)
+	}
 
 }
 

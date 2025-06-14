@@ -34,7 +34,7 @@ func NewUpdateListJSONHandler(storage UpdateListMetricsJSONStorage, config Updat
 // UpdateListJSON add an or update list of metrics from JSON body
 func (handler *UpdateListJSONHandler) UpdateListJSON(w http.ResponseWriter, r *http.Request) {
 	if r.Header.Get("Content-Type") == "application/json" {
-		ctx, cancel := context.WithTimeout(r.Context(), 200*time.Second)
+		ctx, cancel := context.WithTimeout(r.Context(), 1*time.Second)
 		defer cancel()
 		var list []models.Metric
 		body, err := io.ReadAll(r.Body)
@@ -72,8 +72,9 @@ func (handler *UpdateListJSONHandler) UpdateListJSON(w http.ResponseWriter, r *h
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
-		if handler.config.GetDBHost() == "" {
-			SaveMetricStorage(handler.config.GetFilePath(), metrics)
+		err = SaveMetricStorageOnce(handler.config.GetFilePath(), metrics)
+		if err != nil {
+			log.Printf("Error save metrics to file : %v", err)
 		}
 	} else {
 		w.WriteHeader(http.StatusBadRequest)

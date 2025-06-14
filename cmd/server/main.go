@@ -4,8 +4,6 @@ import (
 	"context"
 	"fmt"
 	"github.com/jackc/pgx/v5/pgxpool"
-	"github.com/jasonlvhit/gocron"
-	"github.com/zajcev/go-collect-metrics-and-alert/internal/convert"
 	"github.com/zajcev/go-collect-metrics-and-alert/internal/crypto"
 	"github.com/zajcev/go-collect-metrics-and-alert/internal/server/config"
 	"github.com/zajcev/go-collect-metrics-and-alert/internal/server/db"
@@ -15,6 +13,10 @@ import (
 	"log"
 	"net/http"
 	_ "net/http/pprof"
+	"os"
+	"os/signal"
+	"syscall"
+	"time"
 )
 
 var (
@@ -32,37 +34,47 @@ func main() {
 	}
 	var memstorage db.Storage
 	memstorage = models.NewMemStorage()
+
+	sigChan := make(chan os.Signal, 1)
+	signal.Notify(sigChan, syscall.SIGTERM, syscall.SIGINT, syscall.SIGQUIT)
+
 	go func() {
 		log.Println(http.ListenAndServe("localhost:6060", nil))
 	}()
 
-	if configuration.GetCryptoKey() != "" {
-		err = crypto.GenKeyPair()
+	address := configuration.GetAddress()
+	cryptoKey := configuration.GetCryptoKey()
+	dbHost := configuration.GetDBHost()
+	restore := configuration.GetRestore()
+	filePath := configuration.GetFilePath()
+	interval := configuration.GetStoreInterval()
+
+	if cryptoKey != "" {
+		err = crypto.GenKeyPair("tmp")
 		if err != nil {
 			log.Fatalf("Error generate rsa key pair : %v", err)
 		}
 	}
 
-	if configuration.GetDBHost() == "" {
-		if configuration.GetRestore() {
-			memstorage = handlers.RestoreMetricStorage(configuration.GetFilePath())
+	if dbHost == "" {
+		if restore {
+			memstorage = handlers.RestoreMetricStorage(filePath)
 		}
 		if configuration.GetStoreInterval() > 0 {
 			go func() {
-				err = startScheduler(convert.GetUint(configuration.GetStoreInterval()), configuration.GetFilePath(), memstorage)
-				if err != nil {
-					log.Printf("Error with startScheduler: %v\n", err)
+				if err = handlers.SaveMetricStorageSchedule(interval, filePath, memstorage); err != nil {
+					log.Printf("Error save metrics to file : %v", err)
 				}
 			}()
 		}
 	} else {
 		ctx, cancel := context.WithCancel(context.Background())
 		defer cancel()
-		pool, poolErr := pgxpool.New(ctx, configuration.GetDBHost())
+		pool, poolErr := pgxpool.New(ctx, dbHost)
 		if poolErr != nil {
 			log.Fatalf("Error while create new PgxPool : %v", poolErr)
 		}
-		db.Migration(configuration.GetDBHost(), "internal/server/db/scripts/")
+		db.Migration(dbHost, "internal/server/db/scripts/")
 		memstorage, err = db.NewDatabaseStorage(pool)
 		if err != nil {
 			log.Fatal(err)
@@ -70,18 +82,13 @@ func main() {
 	}
 
 	router := routes.NewRouter(memstorage, configuration)
-	log.Fatal(http.ListenAndServe(configuration.GetAddress(), router))
-}
+	go func() {
+		log.Fatal(http.ListenAndServe(address, router))
+	}()
 
-func startScheduler(interval uint64, filePath string, storage db.Storage) error {
-	scheduler := gocron.NewScheduler()
-	err := scheduler.Every(interval).Seconds().Do(handlers.SaveMetricStorage, filePath, storage)
-	if err != nil {
-		return err
-	}
-	scheduler.Start()
-	return nil
-
+	sig := <-sigChan
+	log.Printf("Received signal %v, shutting down gracefully...", sig)
+	time.Sleep(3 * time.Second)
 }
 
 func printLdFlags() {

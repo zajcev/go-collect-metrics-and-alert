@@ -11,23 +11,42 @@ import (
 	"time"
 )
 
-// SaveMetricStorage save metrics to file
-func SaveMetricStorage(file string, metrics interface {
+// SaveMetricStorageSchedule save metrics to file by duration
+func SaveMetricStorageSchedule(interval int, file string, metrics interface {
 	GetAllMetrics(ctx context.Context) *models.MemStorage
-}) {
-	producer, err := storage.NewProducer(file)
+}) error {
+	duration := time.Duration(interval) * time.Second
+	ticker := time.NewTicker(duration)
+	defer ticker.Stop()
+	for range ticker.C {
+		return save(file, metrics)
+	}
+	return nil
+}
+
+// SaveMetricStorageOnce save metrics to file one time
+func SaveMetricStorageOnce(file string, metrics interface {
+	GetAllMetrics(ctx context.Context) *models.MemStorage
+}) error {
+	return save(file, metrics)
+}
+
+func save(file string, metrics interface {
+	GetAllMetrics(ctx context.Context) *models.MemStorage
+}) error {
 	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
 	defer cancel()
+	producer, err := storage.NewProducer(file)
 	m := metrics.GetAllMetrics(ctx)
 	if err != nil {
-		log.Fatalf("Error create NewProducer bla bla bla : %v", err)
+		return err
 	}
 	err = producer.WriteMetrics(m)
 	if err != nil {
-		log.Fatalf("Error write metrics : %v", err)
+		return err
 	}
+	return nil
 }
-
 func calculateSHA256Hash(data []byte, key string) string {
 	k := []byte(key)
 	signedData := append(k, data...)

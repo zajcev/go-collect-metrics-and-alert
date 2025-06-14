@@ -67,7 +67,10 @@ func (handler *UpdateMetricHandlerJSON) UpdateJSON(w http.ResponseWriter, r *htt
 			log.Fatalf("Error wgile write body : %v", err)
 		}
 		if handler.config.GetDBHost() == "" {
-			SaveMetricStorage(handler.config.GetFilePath(), metrics)
+			err = SaveMetricStorageOnce(handler.config.GetFilePath(), metrics)
+			if err != nil {
+				log.Printf("Error save metrics to file : %v", err)
+			}
 		}
 	} else {
 		w.WriteHeader(http.StatusBadRequest)
