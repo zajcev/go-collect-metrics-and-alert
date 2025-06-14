@@ -2,16 +2,17 @@ package routes
 
 import (
 	"github.com/go-chi/chi/v5"
+	"github.com/zajcev/go-collect-metrics-and-alert/internal/server/config"
 	"github.com/zajcev/go-collect-metrics-and-alert/internal/server/db"
 	"github.com/zajcev/go-collect-metrics-and-alert/internal/server/handlers"
 	"github.com/zajcev/go-collect-metrics-and-alert/internal/server/middleware"
 )
 
-func NewRouter(storage db.Storage) chi.Router {
+func NewRouter(storage db.Storage, config config.Config) chi.Router {
 
 	updateRow := handlers.NewUpdateMeticRawHandler(storage)
-	updateJSON := handlers.NewUpdateMetricHandlerJSON(storage)
-	updateList := handlers.NewUpdateListJSONHandler(storage)
+	updateJSON := handlers.NewUpdateMetricHandlerJSON(storage, config)
+	updateList := handlers.NewUpdateListJSONHandler(storage, config)
 	getJSON := handlers.NewGetMetricJSONHandler(storage)
 
 	getRaw := handlers.NewGetMeticRawHandler(storage)
@@ -19,7 +20,7 @@ func NewRouter(storage db.Storage) chi.Router {
 	getAllJSON := handlers.NewGetMetricListJSONHandler(storage)
 
 	r := chi.NewRouter()
-	r.Use(middleware.GzipMiddleware)
+	r.Use(middleware.GzipMiddleware(config))
 	r.Use(middleware.ZapMiddleware)
 
 	r.Post("/update/{type}/{name}/{value}", updateRow.UpdateMetric)
@@ -31,6 +32,6 @@ func NewRouter(storage db.Storage) chi.Router {
 	r.Get("/", getAllHTML.GetAllMetrics)
 	r.Get("/json", getAllJSON.GetAllMetricsJSON)
 	r.Get("/ping", handlers.DatabaseHandler(storage))
-  
+
 	return r
 }

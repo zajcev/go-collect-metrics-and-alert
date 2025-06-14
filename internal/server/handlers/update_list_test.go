@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"flag"
 	"fmt"
 	"github.com/zajcev/go-collect-metrics-and-alert/internal/server/config"
 	"github.com/zajcev/go-collect-metrics-and-alert/internal/server/models"
@@ -11,12 +12,15 @@ import (
 	"math/rand"
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"testing"
 )
 
 func TestUpdateListMetricsJSON(t *testing.T) {
 	testMemStorage := models.NewMemStorage()
-	err := config.NewConfig()
+	flag.CommandLine = flag.NewFlagSet(os.Args[0], flag.ContinueOnError)
+	configuration := config.NewConfig()
+	err := configuration.Load()
 	if err != nil {
 		log.Fatalf("Error init config : %v", err)
 	}
@@ -49,7 +53,7 @@ func TestUpdateListMetricsJSON(t *testing.T) {
 			req.Header.Set("Content-Type", "application/json")
 
 			rr := httptest.NewRecorder()
-			handler := NewUpdateListJSONHandler(testMemStorage)
+			handler := NewUpdateListJSONHandler(testMemStorage, configuration)
 
 			handler.UpdateListJSON(rr, req)
 
@@ -64,6 +68,12 @@ func TestUpdateListMetricsJSON(t *testing.T) {
 func BenchmarkUpdateListMetricsJSON(b *testing.B) {
 	storage := models.NewMemStorage()
 	listSizes := []int{10, 100, 1000, 5000}
+	flag.CommandLine = flag.NewFlagSet(os.Args[0], flag.ContinueOnError)
+	configuration := config.NewConfig()
+	err := configuration.Load()
+	if err != nil {
+		log.Fatalf("Error load config : %v", err)
+	}
 
 	for _, size := range listSizes {
 		b.Run(fmt.Sprintf("size_%d", size), func(b *testing.B) {
@@ -78,7 +88,7 @@ func BenchmarkUpdateListMetricsJSON(b *testing.B) {
 				req := httptest.NewRequest(http.MethodPost, "/", bytes.NewBuffer(marshal))
 				req.Header.Set("Content-Type", "application/json")
 				rr := httptest.NewRecorder()
-				handler := NewUpdateMetricHandlerJSON(storage)
+				handler := NewUpdateMetricHandlerJSON(storage, configuration)
 
 				handler.UpdateJSON(rr, req)
 			}
@@ -88,7 +98,13 @@ func BenchmarkUpdateListMetricsJSON(b *testing.B) {
 
 func ExampleTestUpdateListMetricsJSON() {
 	storage := models.NewMemStorage()
-	handler := NewUpdateListJSONHandler(storage)
+	flag.CommandLine = flag.NewFlagSet(os.Args[0], flag.ContinueOnError)
+	configuration := config.NewConfig()
+	err := configuration.Load()
+	if err != nil {
+		log.Fatalf("Error load config : %v", err)
+	}
+	handler := NewUpdateListJSONHandler(storage, configuration)
 	jsonBody := `[{"id":"testGauge", "type": "gauge", "value": 42}, {"id":"testCounter", "type": "counter", "delta": 42}]`
 	reqBody := bytes.NewReader([]byte(jsonBody))
 	req := httptest.NewRequest("POST", "/", reqBody)

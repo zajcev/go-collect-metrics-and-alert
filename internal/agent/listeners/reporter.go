@@ -7,6 +7,7 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
+	"github.com/zajcev/go-collect-metrics-and-alert/internal/crypto"
 	"io"
 	"log"
 	"net/http"
@@ -25,7 +26,7 @@ var MemStorage model.Metrics
 // NewReporter send metrics to the server with an interval.
 // Func variable interval defines the frequency of sending.
 // Func variable u defines the url of the server.
-func NewReporter(ctx context.Context, interval int, u string) error {
+func NewReporter(ctx context.Context, interval int, u string, config config.Config) error {
 	mt := reflect.TypeOf(MemStorage)
 	duration := time.Duration(interval) * time.Second
 	ticker := time.NewTicker(duration)
@@ -54,12 +55,12 @@ func NewReporter(ctx context.Context, interval int, u string) error {
 				metric.MType = t
 				mj = append(mj, metric)
 			}
-			send(u, &mj)
+			send(u, &mj, config)
 		}
 	}
 }
 
-func send(u string, list *[]model.MetricJSON) {
+func send(u string, list *[]model.MetricJSON, config config.Config) {
 	req, err := json.Marshal(list)
 	if err != nil {
 		log.Fatalf("Error marshalling json: %v", err)
@@ -78,9 +79,20 @@ func send(u string, list *[]model.MetricJSON) {
 		log.Fatalf("Error compressing json: %v", err)
 		return
 	}
+	bodyBytes := buf.Bytes()
+	if config.GetCryptoKey() != "" {
+		key, errPub := crypto.LoadPublicKey(config.GetCryptoKey())
+		if errPub != nil {
+			log.Printf("Error load public key : %v", errPub)
+		}
+		bodyBytes, err = crypto.Encrypt(key, bodyBytes)
+		if err != nil {
+			log.Printf("Error encrypt data : %v", err)
+		}
+	}
 
 	client := &http.Client{}
-	request, err := http.NewRequest("POST", fu.String(), &buf)
+	request, err := http.NewRequest("POST", fu.String(), bytes.NewReader(bodyBytes))
 	if err != nil {
 		log.Fatalf("Error creating request: %v", err)
 	}

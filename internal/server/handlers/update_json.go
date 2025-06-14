@@ -5,7 +5,6 @@ import (
 	"context"
 	"encoding/json"
 	"github.com/zajcev/go-collect-metrics-and-alert/internal/constants"
-	"github.com/zajcev/go-collect-metrics-and-alert/internal/server/config"
 	"github.com/zajcev/go-collect-metrics-and-alert/internal/server/models"
 	"log"
 	"net/http"
@@ -17,12 +16,21 @@ type UpdateMetricHandlerJSONStorage interface {
 	SetDeltaJSON(ctx context.Context, input models.Metric) int
 	GetAllMetrics(ctx context.Context) *models.MemStorage
 }
+
+type UpdateMetricHandlerJSONConfig interface {
+	GetDBHost() string
+	GetFilePath() string
+}
 type UpdateMetricHandlerJSON struct {
 	storage UpdateMetricHandlerJSONStorage
+	config  UpdateMetricHandlerJSONConfig
 }
 
-func NewUpdateMetricHandlerJSON(storage UpdateMetricHandlerJSONStorage) *UpdateMetricHandlerJSON {
-	return &UpdateMetricHandlerJSON{storage: storage}
+func NewUpdateMetricHandlerJSON(storage UpdateMetricHandlerJSONStorage, config UpdateMetricHandlerJSONConfig) *UpdateMetricHandlerJSON {
+	return &UpdateMetricHandlerJSON{
+		storage: storage,
+		config:  config,
+	}
 }
 
 // UpdateJSON add or update metric value from JSON body
@@ -58,8 +66,11 @@ func (handler *UpdateMetricHandlerJSON) UpdateJSON(w http.ResponseWriter, r *htt
 		if err != nil {
 			log.Fatalf("Error wgile write body : %v", err)
 		}
-		if config.GetDBHost() == "" {
-			SaveMetricStorage(config.GetFilePath(), metrics)
+		if handler.config.GetDBHost() == "" {
+			err = SaveMetricStorageOnce(handler.config.GetFilePath(), metrics)
+			if err != nil {
+				log.Printf("Error save metrics to file : %v", err)
+			}
 		}
 	} else {
 		w.WriteHeader(http.StatusBadRequest)

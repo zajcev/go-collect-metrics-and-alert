@@ -2,9 +2,11 @@ package main
 
 import (
 	"bytes"
+	"github.com/zajcev/go-collect-metrics-and-alert/internal/server/config"
 	"github.com/zajcev/go-collect-metrics-and-alert/internal/server/models"
 	"github.com/zajcev/go-collect-metrics-and-alert/internal/server/routes"
 	"io"
+	"log"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -23,7 +25,12 @@ func TestGetArticleID(t *testing.T) {
 	}
 
 	testStorage := models.NewMemStorage()
-	testServer := httptest.NewServer(routes.NewRouter(testStorage))
+	configuration := config.NewConfig()
+	err := configuration.Load()
+	if err != nil {
+		log.Fatalf("Error load config : %v", err)
+	}
+	testServer := httptest.NewServer(routes.NewRouter(testStorage, configuration))
 	testServer.URL = "http://localhost:8080"
 
 	for _, test := range tests {

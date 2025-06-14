@@ -4,12 +4,16 @@ import (
 	"bytes"
 	"compress/gzip"
 	"encoding/json"
+	"flag"
 	"fmt"
+	"github.com/zajcev/go-collect-metrics-and-alert/internal/agent/config"
 	"github.com/zajcev/go-collect-metrics-and-alert/internal/agent/model"
+	"log"
 	"math/rand"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
+	"os"
 	"testing"
 )
 
@@ -58,6 +62,12 @@ func TestRetryFailure(t *testing.T) {
 
 func TestSend(t *testing.T) {
 	list := generateRandomMetrics(10)
+	flag.CommandLine = flag.NewFlagSet(os.Args[0], flag.ContinueOnError)
+	configuration := config.NewConfig()
+	err := configuration.Load()
+	if err != nil {
+		log.Fatalf("Error load config : %v", err)
+	}
 	testServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		resp, err := json.Marshal(list)
 		if err != nil {
@@ -85,13 +95,18 @@ func TestSend(t *testing.T) {
 	defer testServer.Close()
 
 	for i := 0; i < 3; i++ {
-		send(testServer.URL, &list)
+		send(testServer.URL, &list, configuration)
 	}
 }
 
 func BenchmarkSend(b *testing.B) {
 	listSizes := []int{10, 100, 500, 1000, 5000}
-
+	flag.CommandLine = flag.NewFlagSet(os.Args[0], flag.ContinueOnError)
+	configuration := config.NewConfig()
+	err := configuration.Load()
+	if err != nil {
+		log.Fatalf("Error load config : %v", err)
+	}
 	for _, size := range listSizes {
 		b.Run(fmt.Sprintf("size_%d", size), func(b *testing.B) {
 			list := generateRandomMetrics(size)
@@ -123,7 +138,7 @@ func BenchmarkSend(b *testing.B) {
 
 			b.ResetTimer()
 			for i := 0; i < b.N; i++ {
-				send(testServer.URL, &list)
+				send(testServer.URL, &list, configuration)
 			}
 		})
 	}
